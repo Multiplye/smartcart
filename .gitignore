@@ -1,0 +1,36 @@
+# ---- Python ----
+backend/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ---- Node ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ---- Database ----
+# The database is NOT shared. It holds real uploaded data and, once
+# users register, real password hashes. Each developer keeps their own
+# local copy and re-seeds it with:  python import_products.py
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- Secrets ----
+.env
+.env.local
+.env.*.local
+
+# ---- Editors / OS ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+npm-debug.log*

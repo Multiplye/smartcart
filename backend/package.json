@@ -1,0 +1,12 @@
+{
+  "name": "smartcart-backend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "SmartCart BACKEND (Flask + SQLite). This is a Python project - there is no npm script to run here. This file exists only to print a helpful message if npm is run by mistake.",
+  "scripts": {
+    "dev": "npm run wrong-tool",
+    "build": "npm run wrong-tool",
+    "start": "npm run wrong-tool",
+    "wrong-tool": "node -e \"console.log('');console.log('  WRONG FOLDER AND WRONG TOOL');console.log('  ----------------------------');console.log('  You are in:  smartcart\\\\backend\\\\   (the Flask API)');console.log('');console.log('  This is a PYTHON project. npm does nothing here.');console.log('');console.log('  To start the BACKEND, run:');console.log('');console.log('     python app.py');console.log('');console.log('  To start the FRONTEND, open a NEW terminal and run:');console.log('');console.log('     cd ..\\\\smartcart\\\\smartcart');console.log('     npm run dev');console.log('');process.exit(1);\""
+  }
+}

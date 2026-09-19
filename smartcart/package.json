@@ -1,0 +1,16 @@
+{
+  "name": "smartcart-tailwind-deps",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tailwind CSS dependencies for SmartCart. This is NOT the React app - that is one level deeper in smartcart/smartcart/. This file exists only to print a helpful message when npm is run in the wrong place.",
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "scripts": {
+    "dev": "npm run wrong-folder",
+    "build": "npm run wrong-folder",
+    "start": "npm run wrong-folder",
+    "wrong-folder": "node -e \"console.log('');console.log('  WRONG FOLDER');console.log('  ------------');console.log('  You are in:  smartcart\\\\smartcart\\\\  (Tailwind deps only)');console.log('  This folder has NO React app.');console.log('');console.log('  Go ONE FOLDER DEEPER. Run these two lines:');console.log('');console.log('     cd smartcart');console.log('     npm run dev');console.log('');console.log('  Tip: run \\\"dir\\\" after cd. If you do not see vite.config.js, you are one level too high.');console.log('');process.exit(1);\""
+  }
+}

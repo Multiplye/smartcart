@@ -1,0 +1,12 @@
+{
+  "name": "smartcart-root",
+  "private": true,
+  "version": "0.0.0",
+  "description": "SmartCart project ROOT. The React app is NOT here - it is in the innermost smartcart/smartcart/smartcart folder. This file exists only to print a helpful message when npm is run in the wrong place.",
+  "scripts": {
+    "dev": "npm run wrong-folder",
+    "build": "npm run wrong-folder",
+    "start": "npm run wrong-folder",
+    "wrong-folder": "node -e \"console.log('');console.log('  WRONG FOLDER');console.log('  ------------');console.log('  You are in:  smartcart\\\\  (project root)');console.log('  This folder has NO React app and NO package.json scripts to run.');console.log('');console.log('  The React app is in the INNERMOST folder. Run these two lines:');console.log('');console.log('     cd smartcart\\\\smartcart\\\\smartcart');console.log('     npm run dev');console.log('');console.log('  Tip: run \\\"dir\\\" after cd. If you do not see vite.config.js, you are one level too high.');console.log('');process.exit(1);\""
+  }
+}
