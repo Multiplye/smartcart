@@ -389,59 +389,114 @@ function Home() {
         )}
       </section>
 
-      {/* ================= FEATURES ================= */}
-      <section
-        className="features"
-        id="about"
-      >
-        <div className="feature-card">
-          <span className="feature-number">
-            01
-          </span>
+      {/* ================= ABOUT =================
+          This used to be a bare "features" strip that happened to
+          carry id="about". Two things were wrong:
 
-          <h3>
-            Easy Shopping
-          </h3>
+            1. There was no actual About section, so clicking "About"
+               in the navbar landed on three feature cards with no
+               explanation of what SmartCart is.
+
+            2. The navbar's "Login" link pointed at "#auth" and no
+               element had that id at all - so it silently did
+               nothing. The auth card is a few lines below and now
+               carries the id it always should have had.
+      ========================================= */}
+      <section className="about-section" id="about">
+        <div className="section-heading">
+          <span className="section-label">ABOUT SMARTCART</span>
+
+          <h2>A Smarter Way to Shop</h2>
 
           <p>
-            Browse and discover products through
-            a simple and user-friendly interface.
+            SmartCart is an online marketplace built for Nepal. It
+            pairs a simple shopping experience with a recommendation
+            engine that learns what you like from what you buy.
           </p>
         </div>
 
-        <div className="feature-card">
-          <span className="feature-number">
-            02
-          </span>
+        <div className="features">
+          <div className="feature-card">
+            <span className="feature-number">
+              01
+            </span>
 
-          <h3>
-            AI Recommendations
-          </h3>
+            <h3>
+              Easy Shopping
+            </h3>
 
-          <p>
-            Discover products based on your
-            preferences and interests.
-          </p>
+            <p>
+              Browse and discover products through
+              a simple and user-friendly interface.
+            </p>
+          </div>
+
+          <div className="feature-card">
+            <span className="feature-number">
+              02
+            </span>
+
+            <h3>
+              AI Recommendations
+            </h3>
+
+            <p>
+              Discover products based on your
+              preferences and interests.
+            </p>
+          </div>
+
+          <div className="feature-card">
+            <span className="feature-number">
+              03
+            </span>
+
+            <h3>
+              Trusted Shopping
+            </h3>
+
+            <p>
+              View product information and reviews
+              before making a purchase.
+            </p>
+          </div>
         </div>
 
-        <div className="feature-card">
-          <span className="feature-number">
-            03
-          </span>
-
-          <h3>
-            Trusted Shopping
-          </h3>
+        {/* A short, honest description of how the AI actually works.
+            Worth having on the page: it is the project's headline
+            feature, and a visitor should be able to understand it. */}
+        <div className="about-how">
+          <h3>How the recommendations work</h3>
 
           <p>
-            View product information and reviews
-            before making a purchase.
+            Every product&apos;s name, category and description is
+            turned into a mathematical vector using TF-IDF, which
+            gives more weight to words that are distinctive to a
+            product. SmartCart then measures the angle between those
+            vectors with cosine similarity to find products that are
+            genuinely alike.
           </p>
+
+          <p>
+            Once you have placed an order, the vectors of what you
+            bought are averaged into a taste profile, and every other
+            product is scored against it. Ratings are blended in as a
+            small bonus, so a strong match with a good average rating
+            comes out on top.
+          </p>
+
+          <Link to="/recommendations" className="about-cta">
+            See your recommendations →
+          </Link>
         </div>
       </section>
 
-      {/* ================= AUTH ================= */}
-      <Auth />
+      {/* ================= AUTH =================
+          id="auth" is what the navbar's Login link targets. Without
+          it that link had nothing to scroll to. */}
+      <div id="auth">
+        <Auth />
+      </div>
 
       {/* ================= CONTACT ================= */}
       <section

@@ -1727,7 +1727,16 @@ def personalised_recommendations():
         ),
         "personalised": True,
         "based_on_products": [
-            {"id": product.id, "name": product.name} for product in purchased
+            {
+                "id": product.id,
+                "name": product.name,
+                # The frontend shows these as chips with a thumbnail,
+                # so the image has to travel with the name. Sending the
+                # name alone left every chip with a broken image.
+                "image": product.image,
+                "category": product.category,
+            }
+            for product in purchased
         ],
         "recommendations": recommendation_payload(scored),
     }

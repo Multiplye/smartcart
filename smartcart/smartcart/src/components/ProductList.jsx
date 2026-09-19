@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { getProducts } from "../data/api";
 import { useCart } from "../context/useCart";
 
@@ -6,6 +7,22 @@ function ProductList() {
   // The cart is shared app-wide, so this component reaches it directly
   // instead of being handed a prop from App.
   const { addItem } = useCart();
+
+  const navigate = useNavigate();
+
+  // The home page keeps its own simple search box that hands the term
+  // to the products page. Deliberately a hand-off rather than a second
+  // implementation: one search that works properly is better than two
+  // that can drift apart.
+  const [searchInput, setSearchInput] = useState("");
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+
+    const clean = searchInput.trim();
+
+    navigate(clean ? `/products?search=${encodeURIComponent(clean)}` : "/products");
+  };
 
   // Tracks which "Add to Cart" was clicked last, so we can show a short
   // confirmation on that one card instead of a message at the top of
@@ -82,6 +99,23 @@ function ProductList() {
         </span>
       </div>
 
+      {/* A quick way in. Submitting hands off to the products page,
+          where the full search and category filters live. */}
+      <form className="home-search" onSubmit={handleSearch} role="search">
+        <input
+          type="search"
+          className="search-input"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search for a product"
+          aria-label="Search for a product"
+        />
+
+        <button type="submit" className="search-btn">
+          Search
+        </button>
+      </form>
+
       {loading && (
         <p className="products-status">
           Loading products...
@@ -112,17 +146,25 @@ function ProductList() {
         <div className="product-grid">
         {featuredProducts.map((product) => (
           <div className="product-card" key={product.id}>
-            <div className="product-image">
+            {/* The home cards link through to the product page too.
+                Without this the featured products were the only ones
+                in the whole app you could not click into. */}
+            <Link to={`/product/${product.id}`} className="product-image">
               <img
                 src={product.image}
                 alt={product.name}
               />
-            </div>
+            </Link>
 
             <div className="product-info">
               <small>{product.category}</small>
 
-              <h3>{product.name}</h3>
+              <Link
+                to={`/product/${product.id}`}
+                className="product-name-link"
+              >
+                <h3>{product.name}</h3>
+              </Link>
 
               <p className="product-price">
                 Rs. {product.price.toLocaleString()}
@@ -144,6 +186,12 @@ function ProductList() {
         ))}
         </div>
       )}
+
+      <div className="products-more">
+        <Link to="/products" className="learn-btn">
+          View All Products
+        </Link>
+      </div>
     </section>
   );
 }
