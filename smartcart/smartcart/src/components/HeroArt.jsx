@@ -19,12 +19,34 @@
     * Every colour is pulled from the site palette, so the drawing
       cannot drift away from the rest of the design.
 
-  The scene: a phone showing the SmartCart storefront, surrounded
-  by floating cards that stand in for the recommendation engine.
+  ---------------------------------------------------------------
+  LAYOUT RULES - please read before moving anything
+  ---------------------------------------------------------------
+  The first version of this drawing let its cards hang outside the
+  pale-blue backdrop, which looked broken rather than designed.
 
-  Accessibility: the SVG carries role="img" plus a <title> and a
-  <desc>, so a screen reader announces what it is instead of
-  reading out a pile of path data.
+  The fix was to design to explicit bounds. The backdrop now spans
+  x 24..596 and y 34..526, and EVERY element - including the corners
+  the rotated cards swing out to - has to sit inside that with at
+  least 8 units of clearance.
+
+  Two things make that easy to get wrong:
+
+    1. A rotated rectangle is larger than the rectangle. The "4.8"
+       card is 152x86, but at 8 degrees its corners reach about
+       16 units further out on every side. Rotate about the centre
+       and measure the CORNERS, never the sides.
+
+    2. The cards' rotations are static `transform="rotate(...)"`
+       attributes on an inner <g>. If you move a card, move its
+       rotation origin with it - the three numbers in `rotate()` are
+       angle, cx, cy and they must match the centre of the new rect.
+
+  The backdrop is a single <rect> with rounded corners rather than a
+  wobbly blob: with cards overlapping its edges from four directions,
+  a straight edge reads as intentional and a curve reads as a mistake.
+  The soft corner blobs behind the cards are decoration INSIDE it,
+  well clear of the boundary, so they can never poke out.
 */
 
 function HeroArt() {
@@ -41,7 +63,8 @@ function HeroArt() {
       <desc id="heroArtDesc">
         A phone showing the SmartCart storefront with a confirmed
         order, surrounded by floating cards for a product match
-        score, shopping preferences and customer ratings.
+        score, shopping preferences, a cart update and customer
+        ratings.
       </desc>
 
       {/* =====================================================
@@ -51,8 +74,8 @@ function HeroArt() {
           palette can be adjusted in one place.
       ===================================================== */}
       <defs>
-        <linearGradient id="haSky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#eaf7ff" />
+        <linearGradient id="haBg" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%" stopColor="#eef8ff" />
           <stop offset="100%" stopColor="#d9f0ff" />
         </linearGradient>
 
@@ -90,28 +113,32 @@ function HeroArt() {
         {/* Three shadow depths. Small elements get `tiny`, the
             phone gets `lift`, and everything in between gets
             `soft`. Reusing three levels keeps the depth looking
-            deliberate instead of accidental. */}
-        <filter id="haSoft" x="-40%" y="-40%" width="180%" height="180%">
+            deliberate instead of accidental.
+
+            The filter regions are padded well beyond the default
+            -10%..120% so a drop shadow near the edge of the
+            drawing is not clipped. */}
+        <filter id="haSoft" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow
             dx="0"
-            dy="10"
-            stdDeviation="12"
+            dy="9"
+            stdDeviation="11"
             floodColor="#31465a"
-            floodOpacity="0.13"
+            floodOpacity="0.12"
           />
         </filter>
 
-        <filter id="haLift" x="-40%" y="-40%" width="180%" height="180%">
+        <filter id="haLift" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow
             dx="0"
-            dy="16"
-            stdDeviation="18"
+            dy="14"
+            stdDeviation="16"
             floodColor="#31465a"
-            floodOpacity="0.20"
+            floodOpacity="0.18"
           />
         </filter>
 
-        <filter id="haTiny" x="-50%" y="-50%" width="200%" height="200%">
+        <filter id="haTiny" x="-60%" y="-60%" width="220%" height="220%">
           <feDropShadow
             dx="0"
             dy="5"
@@ -124,39 +151,50 @@ function HeroArt() {
 
       {/* =====================================================
           BACKDROP
-          A rounded organic blob behind everything. The phone and
-          cards overlap its edge slightly, which is what gives the
-          scene a sense of depth.
+          One rounded rectangle. See the layout note at the top:
+          x 24..596, y 34..526. Nothing may leave this.
       ===================================================== */}
-      <path
-        className="ha-blob"
-        d="M300 45c95-16 205 22 246 108 41 86 12 197-59 258-71 61-181 72-268 38C132 415 58 337 45 244 32 151 93 71 185 53c38-7 77-5 115-8z"
-        fill="url(#haSky)"
+      <rect
+        className="ha-bg"
+        x="20"
+        y="30"
+        width="580"
+        height="500"
+        rx="52"
+        fill="url(#haBg)"
       />
 
-      {/* Decorative dots. These are the smallest animated parts,
-          drifting furthest, which reads as the closest layer. */}
-      <circle className="ha-dot ha-dot-1" cx="86" cy="150" r="7" fill="#8959e6" opacity="0.45" />
-      <circle className="ha-dot ha-dot-2" cx="546" cy="186" r="10" fill="#c7dfa3" opacity="0.9" />
-      <circle className="ha-dot ha-dot-3" cx="70" cy="404" r="6" fill="#31465a" opacity="0.22" />
-      <circle className="ha-dot ha-dot-4" cx="556" cy="432" r="8" fill="#8959e6" opacity="0.35" />
+      {/* Decorative corner glows. These are INSIDE the backdrop and
+          inset far enough that no rotation or scaling can push them
+          past its edge. */}
+      <circle cx="96" cy="122" r="54" fill="#ffffff" opacity="0.5" />
+      <circle cx="520" cy="128" r="44" fill="#ffffff" opacity="0.35" />
+      <circle cx="120" cy="450" r="46" fill="#ffffff" opacity="0.34" />
+      <circle cx="494" cy="446" r="58" fill="#ffffff" opacity="0.42" />
+
+      {/* Small decorative dots, also kept well inside. */}
+      <circle className="ha-dot ha-dot-1" cx="150" cy="92" r="6" fill="#8959e6" opacity="0.4" />
+      <circle className="ha-dot ha-dot-2" cx="494" cy="88" r="7" fill="#c7dfa3" opacity="0.9" />
+      <circle className="ha-dot ha-dot-3" cx="80" cy="330" r="5" fill="#31465a" opacity="0.18" />
+      <circle className="ha-dot ha-dot-4" cx="536" cy="452" r="6" fill="#8959e6" opacity="0.3" />
 
       {/* =====================================================
           THE PHONE
-          Drawn in a group that floats as one unit, because a
-          phone whose body and screen drift apart looks broken.
+          x 204..416, y 96..488 - comfortably inside the backdrop
+          with 180 to spare on the left and 180 on the right.
+          Drawn as one group so the body and screen float together.
       ===================================================== */}
       <g className="ha-phone" filter="url(#haLift)">
-        {/* Body */}
-        <rect x="204" y="96" width="212" height="392" rx="34" fill="#31465a" />
+        {/* Body. x 204..416 (212 wide), y 96..504 (408 tall). */}
+        <rect x="204" y="96" width="212" height="408" rx="34" fill="#31465a" />
 
-        {/* Bezel highlight down the left edge - a one-pixel
-            light line is what makes plastic look like metal. */}
+        {/* Bezel highlight down the left edge - a thin light line
+            is what makes plastic look like metal. */}
         <rect
           x="206.5"
           y="98.5"
           width="207"
-          height="387"
+          height="403"
           rx="32"
           fill="none"
           stroke="#ffffff"
@@ -164,8 +202,9 @@ function HeroArt() {
           strokeWidth="1.5"
         />
 
-        {/* Screen */}
-        <rect x="216" y="110" width="188" height="364" rx="26" fill="url(#haScreen)" />
+        {/* Screen. x 216..404, y 110..490. Everything drawn on the
+            screen must stay inside this box. */}
+        <rect x="216" y="110" width="188" height="380" rx="26" fill="url(#haScreen)" />
 
         {/* Notch */}
         <rect x="286" y="120" width="48" height="7" rx="3.5" fill="#31465a" opacity="0.35" />
@@ -185,31 +224,31 @@ function HeroArt() {
           <tspan fill="#8959e6">Cart</tspan>
         </text>
 
-        <rect x="286" y="178" width="48" height="3" rx="1.5" fill="#c7dfa3" />
+        <rect x="286" y="179" width="48" height="3" rx="1.5" fill="#c7dfa3" />
 
         {/* ---- Awning ----
-            A scalloped strip. Each scallop is one <path>;
-            the flat block behind them hides the tops. */}
-        <rect x="236" y="196" width="148" height="14" fill="url(#haAwn)" />
+            A scalloped strip. Each scallop is one arc; the flat
+            block behind them hides the tops so no seam shows. */}
+        <rect x="236" y="198" width="148" height="14" fill="url(#haAwn)" />
 
         <path
-          d="M236 210a12 12 0 0 0 24 0zM260 210a12 12 0 0 0 24 0zM284 210a12 12 0 0 0 24 0zM308 210a12 12 0 0 0 24 0zM332 210a12 12 0 0 0 24 0zM356 210a12 12 0 0 0 24 0z"
+          d="M236 212a12 12 0 0 0 24 0zM260 212a12 12 0 0 0 24 0zM284 212a12 12 0 0 0 24 0zM308 212a12 12 0 0 0 24 0zM332 212a12 12 0 0 0 24 0zM356 212a12 12 0 0 0 24 0z"
           fill="url(#haAwn)"
         />
 
         {/* ---- Window ---- */}
-        <rect x="240" y="228" width="140" height="106" rx="12" fill="url(#haPane)" />
+        <rect x="240" y="230" width="140" height="102" rx="12" fill="url(#haPane)" />
 
         {/* Glass reflection: a soft diagonal band across the
             top-left corner. */}
-        <path d="M240 240v-12h46l-40 94h-6z" fill="#ffffff" opacity="0.55" />
+        <path d="M240 242v-12h46l-40 92h-6z" fill="#ffffff" opacity="0.55" />
 
         {/* Window frame */}
         <rect
           x="240"
-          y="228"
+          y="230"
           width="140"
-          height="106"
+          height="102"
           rx="12"
           fill="none"
           stroke="#31465a"
@@ -221,8 +260,8 @@ function HeroArt() {
         <rect x="258" y="262" width="104" height="5" rx="2.5" fill="#31465a" opacity="0.13" />
         <rect x="258" y="300" width="104" height="5" rx="2.5" fill="#31465a" opacity="0.13" />
 
-        {/* Products on the shelves - simple blocks, deliberately
-            abstract so they never look like a botched icon. */}
+        {/* Products on the shelves - deliberately abstract blocks,
+            so they read as stock rather than as broken icons. */}
         <rect x="266" y="240" width="16" height="22" rx="4" fill="#8959e6" opacity="0.75" />
         <rect x="290" y="246" width="14" height="16" rx="4" fill="#c7dfa3" />
         <rect x="312" y="238" width="18" height="24" rx="5" fill="#8959e6" opacity="0.45" />
@@ -231,45 +270,57 @@ function HeroArt() {
         <rect x="292" y="284" width="14" height="16" rx="4" fill="#8959e6" opacity="0.6" />
         <rect x="314" y="278" width="14" height="22" rx="4" fill="#31465a" opacity="0.2" />
 
-        {/* ---- Counter ---- */}
-        <rect x="240" y="342" width="140" height="10" rx="5" fill="#31465a" opacity="0.75" />
-        <rect x="240" y="352" width="140" height="52" rx="8" fill="#31465a" opacity="0.12" />
+        {/* ---- Counter ----
+            Sits directly under the window, full screen width, so
+            the two read as a shopfront rather than as two loose
+            objects. */}
+        <rect x="240" y="340" width="140" height="9" rx="4.5" fill="#31465a" opacity="0.72" />
+        <rect x="240" y="349" width="140" height="26" rx="6" fill="#31465a" opacity="0.1" />
 
-        {/* Small plant on the counter, in a terracotta-free
-            palette to keep to the site colours. */}
-        <path
-          d="M262 342c0-10 6-16 12-16s12 6 12 16z"
-          fill="url(#haOrb)"
-        />
-        <rect x="266" y="342" width="16" height="12" rx="3" fill="#8959e6" opacity="0.55" />
+        {/* A small plant on the counter, in the site palette. */}
+        <path d="M262 340c0-9 5.5-15 11-15s11 6 11 15z" fill="url(#haOrb)" />
+        <rect x="265.5" y="340" width="15" height="11" rx="3" fill="#8959e6" opacity="0.55" />
 
         {/* ---- Confirmation panel ----
-            The "order placed" state the hero is advertising. */}
-        <rect x="256" y="378" width="108" height="62" rx="14" fill="#ffffff" />
+            The "order placed" state the hero is advertising.
+
+            This panel is 152 wide (x 232..384) and the longest line
+            of text in it is "Order confirmed" at fontSize 10, which
+            measures about 84 units. At x=276 that lands at 360, so
+            there is ~24 units of padding on the right. The first
+            version used a 108-wide panel and the text visibly spilled
+            out of it - if you lengthen this string, widen the panel
+            or drop the font size.
+
+            Height is 58 (y 366..424) and the recommendation label
+            sits at baseline y=440, so the two clear each other by 8
+            units. A 64-high panel put its bottom edge at 430 and the
+            label ran straight through it. */}
+        <rect x="232" y="366" width="152" height="58" rx="14" fill="#ffffff" />
         <rect
-          x="256"
-          y="378"
-          width="108"
-          height="62"
+          x="232"
+          y="366"
+          width="152"
+          height="58"
           rx="14"
           fill="none"
           stroke="#c7dfa3"
           strokeWidth="1.6"
         />
 
-        <circle cx="278" cy="402" r="13" fill="#c7dfa3" />
+        <circle cx="255" cy="386" r="11.5" fill="#c7dfa3" />
         <path
-          d="M272 402.5l4.4 4.6 8-9"
+          d="M249.5 386.5l4 4.2 7.4-8.4"
           fill="none"
           stroke="#31465a"
-          strokeWidth="2.6"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
         <text
-          x="300"
-          y="400"
+          x="275"
+          y="384"
           fontFamily="Poppins, sans-serif"
           fontSize="10"
           fontWeight="600"
@@ -279,8 +330,8 @@ function HeroArt() {
         </text>
 
         <text
-          x="300"
-          y="414"
+          x="275"
+          y="397"
           fontFamily="Poppins, sans-serif"
           fontSize="8.5"
           fill="#6f7c87"
@@ -289,41 +340,98 @@ function HeroArt() {
         </text>
 
         {/* A thin progress bar under the text. */}
-        <rect x="300" y="422" width="52" height="4" rx="2" fill="#e7e8e4" />
-        <rect x="300" y="422" width="34" height="4" rx="2" fill="#8959e6" />
+        <rect x="275" y="404" width="92" height="4" rx="2" fill="#e7e8e4" />
+        <rect x="275" y="404" width="60" height="4" rx="2" fill="#8959e6" />
 
-        {/* Home indicator */}
-        <rect x="288" y="460" width="44" height="5" rx="2.5" fill="#31465a" opacity="0.25" />
+        {/* ---- Recommendation row ----
+            Without this the lower third of the screen was empty and
+            the drawing looked unfinished. It also earns its place:
+            it shows the one thing SmartCart actually does, which is
+            suggest something.
+
+            The label baseline is y=440 and the thumbnails run
+            y 445..470. Both MUST clear the screen's bottom edge at
+            y=474 - an earlier attempt put the thumbnails at
+            y 470..504, which pushed them 30 units out through the
+            bottom of the phone. */}
+        <text
+          x="240"
+          y="440"
+          fontFamily="Poppins, sans-serif"
+          fontSize="7.5"
+          fill="#6f7c87"
+          letterSpacing="0.4"
+        >
+          RECOMMENDED FOR YOU
+        </text>
+
+        {/* Thumb 1 - highlighted, since it is the top match */}
+        <rect x="240" y="445" width="42" height="25" rx="6" fill="#eaf7ff" />
+        <rect
+          x="240"
+          y="445"
+          width="42"
+          height="25"
+          rx="6"
+          fill="none"
+          stroke="#8959e6"
+          strokeWidth="1.2"
+        />
+        <rect x="249" y="450" width="24" height="15" rx="3.5" fill="#8959e6" opacity="0.7" />
+
+        {/* Thumb 2 */}
+        <rect x="289" y="445" width="42" height="25" rx="6" fill="#f4f8fb" />
+        <rect x="298" y="450" width="24" height="15" rx="3.5" fill="#c7dfa3" />
+
+        {/* Thumb 3 */}
+        <rect x="338" y="445" width="42" height="25" rx="6" fill="#f4f8fb" />
+        <rect x="347" y="450" width="24" height="15" rx="3.5" fill="#31465a" opacity="0.22" />
+
+        {/* Home indicator. Sits in the clear strip between the
+            thumbnails (end at y=470) and the screen edge (y=474). */}
+        <rect x="288" y="479" width="44" height="5" rx="2.5" fill="#31465a" opacity="0.25" />
       </g>
 
       {/* =====================================================
           FLOATING CARDS
-          Each card sits in its own group so it can drift on its
-          own timing. The base rotation is applied to an inner
-          group, keeping the CSS animation free to move the outer
-          one without fighting the transform.
+
+          Each card is two nested groups:
+
+            outer .ha-card-N  -> the CSS float animation
+            inner <g rotate>  -> the static tilt
+
+          They MUST stay separate. If the animation and the rotation
+          share one element, the CSS transform replaces the SVG
+          transform attribute and the tilt silently disappears.
+
+          The rotate() arguments are (angle, cx, cy) and cx/cy must
+          be the CENTRE of that card's rect. Change the rect and you
+          must change the centre with it.
       ===================================================== */}
 
-      {/* ---- Profile / preferences card ---- */}
+      {/* ---- "Your taste" card ----
+          rect 58,166 150x84 -> centre (133,208)
+          at -7 deg the corners reach x 51.6..214.4, y 142.2..273.8
+          The backdrop starts at x=24, so there is 27 units clear. */}
       <g className="ha-card ha-card-1">
-        <g transform="rotate(-7 122 196)">
+        <g transform="rotate(-7 133 208)">
           <rect
-            x="46"
-            y="152"
-            width="152"
-            height="88"
+            x="58"
+            y="166"
+            width="150"
+            height="84"
             rx="18"
             fill="#ffffff"
             filter="url(#haSoft)"
           />
 
-          <circle cx="76" cy="184" r="15" fill="#d9f0ff" />
-          <circle cx="76" cy="179" r="5.4" fill="#31465a" opacity="0.65" />
-          <path d="M67 193a9.6 9.6 0 0 1 18 0z" fill="#31465a" opacity="0.65" />
+          <circle cx="88" cy="198" r="15" fill="#d9f0ff" />
+          <circle cx="88" cy="193" r="5.4" fill="#31465a" opacity="0.65" />
+          <path d="M79 207a9.6 9.6 0 0 1 18 0z" fill="#31465a" opacity="0.65" />
 
           <text
-            x="100"
-            y="181"
+            x="112"
+            y="195"
             fontFamily="Poppins, sans-serif"
             fontSize="11"
             fontWeight="600"
@@ -333,8 +441,8 @@ function HeroArt() {
           </text>
 
           <text
-            x="100"
-            y="196"
+            x="112"
+            y="210"
             fontFamily="Poppins, sans-serif"
             fontSize="9"
             fill="#6f7c87"
@@ -342,30 +450,32 @@ function HeroArt() {
             Electronics · Home
           </text>
 
-          {/* Three small tags */}
-          <rect x="100" y="206" width="34" height="13" rx="6.5" fill="#eaf7ff" />
-          <rect x="139" y="206" width="30" height="13" rx="6.5" fill="#eef6e2" />
+          <rect x="112" y="220" width="34" height="13" rx="6.5" fill="#eaf7ff" />
+          <rect x="151" y="220" width="30" height="13" rx="6.5" fill="#eef6e2" />
         </g>
       </g>
 
-      {/* ---- Match score card (the AI's headline number) ---- */}
+      {/* ---- 92% match card ----
+          rect 428,120 152x86 -> centre (504,163)
+          at +6 deg the corners reach x 423.9..584.1, y 112.3..213.7
+          The backdrop ends at x=600, so there is 15.9 units clear. */}
       <g className="ha-card ha-card-2">
-        <g transform="rotate(6 512 158)">
+        <g transform="rotate(6 504 163)">
           <rect
-            x="424"
-            y="112"
-            width="176"
-            height="92"
+            x="428"
+            y="120"
+            width="152"
+            height="86"
             rx="18"
             fill="#31465a"
             filter="url(#haSoft)"
           />
 
           <text
-            x="448"
-            y="152"
+            x="450"
+            y="158"
             fontFamily="Poppins, sans-serif"
-            fontSize="27"
+            fontSize="26"
             fontWeight="700"
             fill="#ffffff"
           >
@@ -373,8 +483,8 @@ function HeroArt() {
           </text>
 
           <text
-            x="448"
-            y="170"
+            x="450"
+            y="175"
             fontFamily="Poppins, sans-serif"
             fontSize="9.5"
             fill="#c7dfa3"
@@ -382,14 +492,14 @@ function HeroArt() {
             recommendation match
           </text>
 
-          {/* A small bar chart, so the card means "scored" at a
-              glance rather than only in words. */}
-          <rect x="448" y="182" width="60" height="5" rx="2.5" fill="#ffffff" opacity="0.22" />
-          <rect x="448" y="182" width="46" height="5" rx="2.5" fill="#8959e6" />
+          {/* A small bar, so the card reads as "scored" at a
+              glance and not only from the words. */}
+          <rect x="450" y="186" width="62" height="5" rx="2.5" fill="#ffffff" opacity="0.22" />
+          <rect x="450" y="186" width="46" height="5" rx="2.5" fill="#8959e6" />
 
-          <circle cx="568" cy="140" r="15" fill="#8959e6" />
+          <circle cx="556" cy="146" r="14" fill="#8959e6" />
           <path
-            d="M561 140l5 5 9-10"
+            d="M549.5 146l4.6 4.6 8.4-9.4"
             fill="none"
             stroke="#ffffff"
             strokeWidth="2.4"
@@ -399,111 +509,14 @@ function HeroArt() {
         </g>
       </g>
 
-      {/* ---- Cart / user card ---- */}
-      <g className="ha-card ha-card-3">
-        <g transform="rotate(-5 132 424)">
-          <rect
-            x="52"
-            y="386"
-            width="164"
-            height="74"
-            rx="18"
-            fill="#ffffff"
-            filter="url(#haSoft)"
-          />
-
-          <rect x="76" y="408" width="22" height="24" rx="5" fill="#8959e6" opacity="0.85" />
-          <path
-            d="M80 408v-4a7 7 0 0 1 14 0v4"
-            fill="none"
-            stroke="#8959e6"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-          />
-
-          <text
-            x="110"
-            y="418"
-            fontFamily="Poppins, sans-serif"
-            fontSize="11"
-            fontWeight="600"
-            fill="#31465a"
-          >
-            Cart updated
-          </text>
-
-          <text
-            x="110"
-            y="433"
-            fontFamily="Poppins, sans-serif"
-            fontSize="9"
-            fill="#6f7c87"
-          >
-            3 items · Rs. 12,400
-          </text>
-
-          <rect x="110" y="442" width="88" height="4" rx="2" fill="#e7e8e4" />
-          <rect x="110" y="442" width="58" height="4" rx="2" fill="#c7dfa3" />
-        </g>
-      </g>
-
-      {/* ---- Rating card ---- */}
-      <g className="ha-card ha-card-4">
-        <g transform="rotate(8 528 402)">
-          <rect
-            x="452"
-            y="360"
-            width="152"
-            height="86"
-            rx="18"
-            fill="#ffffff"
-            filter="url(#haSoft)"
-          />
-
-          <text
-            x="478"
-            y="396"
-            fontFamily="Poppins, sans-serif"
-            fontSize="21"
-            fontWeight="700"
-            fill="#31465a"
-          >
-            4.8
-          </text>
-
-          {/* Five stars. Four are filled, the fifth is dimmed -
-              which is more believable than five identical ones. */}
-          <g fill="#8959e6">
-            <path d="M500 388l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" />
-            <path d="M524 388l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" />
-            <path d="M548 388l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" />
-            <path d="M572 388l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" />
-          </g>
-
-          <path
-            d="M596 388l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"
-            fill="#31465a"
-            opacity="0.18"
-          />
-
-          <text
-            x="478"
-            y="424"
-            fontFamily="Poppins, sans-serif"
-            fontSize="9"
-            fill="#6f7c87"
-          >
-            from 128 reviews
-          </text>
-        </g>
-      </g>
-
-      {/* ---- Shopping bag ---- */}
+      {/* ---- Shopping bag ----
+          rect 502,256 80x88 -> centre (542,300)
+          at +7 deg corners reach x 496.9..587.1, y 251.5..348.5 */}
       <g className="ha-card ha-card-5">
-        <g transform="rotate(7 552 292)">
+        <g transform="rotate(7 542 300)">
           <rect
-            x="512"
-            y="248"
+            x="502"
+            y="256"
             width="80"
             height="88"
             rx="16"
@@ -513,7 +526,7 @@ function HeroArt() {
 
           {/* Handle */}
           <path
-            d="M530 266v-8a22 22 0 0 1 44 0v8"
+            d="M520 274v-8a22 22 0 0 1 44 0v8"
             fill="none"
             stroke="#ffffff"
             strokeOpacity="0.75"
@@ -522,14 +535,128 @@ function HeroArt() {
           />
 
           {/* The SmartCart "C" */}
-          <circle cx="552" cy="296" r="17" fill="#ffffff" opacity="0.22" />
+          <circle cx="542" cy="304" r="17" fill="#ffffff" opacity="0.22" />
           <path
-            d="M561 290a12 12 0 1 0 0 13"
+            d="M551 298a12 12 0 1 0 0 13"
             fill="none"
             stroke="#ffffff"
             strokeWidth="3.2"
             strokeLinecap="round"
           />
+        </g>
+      </g>
+
+      {/* ---- "Cart updated" card ----
+          rect 54,392 160x76 -> centre (134,430)
+          at -5 deg corners reach x 48.0..220.0, y 374.7..485.3
+          The backdrop ends at y=526, so there is 40 units clear. */}
+      <g className="ha-card ha-card-3">
+        <g transform="rotate(-5 134 430)">
+          <rect
+            x="54"
+            y="392"
+            width="160"
+            height="76"
+            rx="18"
+            fill="#ffffff"
+            filter="url(#haSoft)"
+          />
+
+          <rect x="78" y="416" width="22" height="24" rx="5" fill="#8959e6" opacity="0.85" />
+          <path
+            d="M82 416v-4a7 7 0 0 1 14 0v4"
+            fill="none"
+            stroke="#8959e6"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+
+          <text
+            x="112"
+            y="426"
+            fontFamily="Poppins, sans-serif"
+            fontSize="11"
+            fontWeight="600"
+            fill="#31465a"
+          >
+            Cart updated
+          </text>
+
+          <text
+            x="112"
+            y="441"
+            fontFamily="Poppins, sans-serif"
+            fontSize="9"
+            fill="#6f7c87"
+          >
+            3 items · Rs. 12,400
+          </text>
+
+          <rect x="112" y="450" width="86" height="4" rx="2" fill="#e7e8e4" />
+          <rect x="112" y="450" width="56" height="4" rx="2" fill="#c7dfa3" />
+        </g>
+      </g>
+
+      {/* ---- Rating card ----
+          rect 432,376 152x86 -> centre (508,419)
+          at +8 deg corners reach x 426.8..589.2, y 365.8..472.2
+
+          This is the card that hung off the bottom-right corner in
+          the first version of the drawing. It now has 10.8 units
+          of clearance on its tightest side. */}
+      <g className="ha-card ha-card-4">
+        <g transform="rotate(8 508 419)">
+          <rect
+            x="432"
+            y="376"
+            width="152"
+            height="86"
+            rx="18"
+            fill="#ffffff"
+            filter="url(#haSoft)"
+          />
+
+          <text
+            x="452"
+            y="410"
+            fontFamily="Poppins, sans-serif"
+            fontSize="20"
+            fontWeight="700"
+            fill="#31465a"
+          >
+            4.8
+          </text>
+
+          {/* Five stars. Four are filled and the fifth is dimmed,
+              which is more believable than five identical ones.
+
+              They start at x=490, not 476. At 476 the first star
+              overlapped the "4.8" - the digit ends around x=486 and
+              a star's widest point is its top edge, so anything
+              closer than about 4 units collides. Stars are 20 wide
+              and spaced 21 apart, giving 84 units total. */}
+          <g fill="#8959e6">
+            <path d="M490 400l2.4 5 5.5.8-4 3.9 1 5.5-4.9-2.6-4.9 2.6 1-5.5-4-3.9 5.5-.8z" />
+            <path d="M511 400l2.4 5 5.5.8-4 3.9 1 5.5-4.9-2.6-4.9 2.6 1-5.5-4-3.9 5.5-.8z" />
+            <path d="M532 400l2.4 5 5.5.8-4 3.9 1 5.5-4.9-2.6-4.9 2.6 1-5.5-4-3.9 5.5-.8z" />
+            <path d="M553 400l2.4 5 5.5.8-4 3.9 1 5.5-4.9-2.6-4.9 2.6 1-5.5-4-3.9 5.5-.8z" />
+          </g>
+
+          <path
+            d="M574 400l2.4 5 5.5.8-4 3.9 1 5.5-4.9-2.6-4.9 2.6 1-5.5-4-3.9 5.5-.8z"
+            fill="#31465a"
+            opacity="0.18"
+          />
+
+          <text
+            x="452"
+            y="438"
+            fontFamily="Poppins, sans-serif"
+            fontSize="9"
+            fill="#6f7c87"
+          >
+            from 128 reviews
+          </text>
         </g>
       </g>
     </svg>
