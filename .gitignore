@@ -57,3 +57,14 @@ Thumbs.db
 # ---- Logs ----
 *.log
 npm-debug.log*
+
+# ---- Local tooling binaries ----
+# tools/cloudflared.exe is a 55 MB download used to expose the local
+# backend during development. It is not source code and should never be
+# committed - git would store a full copy in history forever, and it is
+# platform-specific (Windows only).
+#
+# Keep the helper scripts, ignore the binaries they download.
+tools/*.exe
+tools/*.zip
+tools/cloudflared*
