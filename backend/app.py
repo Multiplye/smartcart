@@ -5,6 +5,13 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from recommender import (
+    DEFAULT_LIMIT,
+    popular_products,
+    recommend_from_history,
+    similar_products,
+)
+
 # Create Flask application
 app = Flask(__name__)
 
@@ -1546,6 +1553,204 @@ def delete_review(review_id):
         "message": "Your review was removed.",
         "summary": rating_for(product_id),
     }, 200
+
+
+# =========================
+# AI RECOMMENDATIONS
+# =========================
+#
+# The maths lives in recommender.py. This section is the plumbing: load
+# the products, attach their ratings, hand them to the engine, and turn
+# the answer into JSON.
+
+
+def products_with_ratings(products):
+    """Attach rating_average and rating_count to each product.
+
+    The recommender needs these to blend popularity into the score, and
+    product_to_dict expects them too. Doing it in one grouped query
+    means we do not hit the database once per product.
+    """
+    ratings = rating_summary_for([product.id for product in products])
+
+    for product in products:
+        summary = ratings.get(product.id, {"average": 0.0, "count": 0})
+
+        # These are plain Python attributes on the object, not database
+        # columns - they exist only for the life of this request.
+        product.rating_average = summary["average"]
+        product.rating_count = summary["count"]
+
+    return products
+
+
+def recommendation_payload(scored):
+    """Turn the engine's (product, score, similarity) rows into JSON.
+
+    The score is reported as a percentage because "78% match" means
+    something to a person, whereas "0.7841" does not.
+    """
+    payload = []
+
+    for product, score, similarity in scored:
+        as_dict = product_to_dict(product, {
+            "average": getattr(product, "rating_average", 0.0),
+            "count": getattr(product, "rating_count", 0),
+        })
+
+        as_dict["match_score"] = score
+        as_dict["match_percent"] = round(score * 100)
+        as_dict["text_similarity"] = similarity
+
+        payload.append(as_dict)
+
+    return payload
+
+
+@app.route("/api/products/<int:product_id>/recommendations", methods=["GET"])
+def product_recommendations(product_id):
+    """Products similar to this one.
+
+    Open to everyone, logged in or not - this is what powers the
+    "You might also like" strip on a product page.
+
+    Optional ?limit= (1 to 12, default 4).
+    """
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    limit = read_limit(request.args.get("limit"))
+
+    candidates = products_with_ratings(Product.query.all())
+
+    target = next(
+        (item for item in candidates if item.id == product_id), None
+    )
+
+    if target is None:
+        return {"error": "Product not found."}, 404
+
+    scored = similar_products(target, candidates, limit=limit)
+
+    # If the text gave us nothing useful (a brand new product with a
+    # one-word description, say), fall back to the best rated items so
+    # the shopper still sees something.
+    fallback_used = False
+
+    if not scored:
+        scored = popular_products(
+            [item for item in candidates if item.id != product_id], limit=limit
+        )
+        fallback_used = True
+
+    return {
+        "product_id": product_id,
+        "based_on": "product similarity",
+        "fallback": fallback_used,
+        "recommendations": recommendation_payload(scored),
+    }
+
+
+@app.route("/api/recommendations", methods=["GET"])
+def personalised_recommendations():
+    """Recommendations for the logged-in user, based on order history.
+
+    Anyone can call this. A logged-out visitor (or a user who has not
+    ordered anything) gets the most popular products instead, so the
+    section is never empty.
+    """
+
+    limit = read_limit(request.args.get("limit"))
+
+    candidates = products_with_ratings(Product.query.all())
+
+    user = get_current_user()
+
+    if user is None:
+        scored = popular_products(candidates, limit=limit)
+
+        return {
+            "based_on": "popularity",
+            "reason": "Log in to get recommendations based on what you buy.",
+            "personalised": False,
+            "recommendations": recommendation_payload(scored),
+        }
+
+    # Which products has this user ordered?
+    purchased_ids = [
+        row.product_id
+        for row in db.session.query(OrderItem.product_id)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(Order.user_id == user.id)
+        .distinct()
+        .all()
+    ]
+
+    purchased = [
+        product for product in candidates if product.id in purchased_ids
+    ]
+
+    if not purchased:
+        scored = popular_products(candidates, limit=limit)
+
+        return {
+            "based_on": "popularity",
+            "reason": (
+                "Order something and this section will start matching "
+                "your taste."
+            ),
+            "personalised": False,
+            "recommendations": recommendation_payload(scored),
+        }
+
+    scored = recommend_from_history(purchased, candidates, limit=limit)
+
+    if not scored:
+        # They have ordered everything we stock - nothing left to suggest
+        scored = popular_products(candidates, limit=limit)
+
+        return {
+            "based_on": "popularity",
+            "reason": "You have ordered everything we have, so here are our top picks.",
+            "personalised": False,
+            "recommendations": recommendation_payload(scored),
+        }
+
+    return {
+        "based_on": "your order history",
+        "reason": (
+            f"Based on the {len(purchased)} product"
+            f"{'' if len(purchased) == 1 else 's'} you have ordered."
+        ),
+        "personalised": True,
+        "based_on_products": [
+            {"id": product.id, "name": product.name} for product in purchased
+        ],
+        "recommendations": recommendation_payload(scored),
+    }
+
+
+def read_limit(raw_value, default=DEFAULT_LIMIT, maximum=12):
+    """Read a ?limit= value safely.
+
+    A bad value falls back to the default rather than erroring. Someone
+    typing ?limit=abc should see recommendations, not a 400.
+    """
+    if raw_value is None:
+        return default
+
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return default
+
+    if value < 1:
+        return default
+
+    return min(value, maximum)
 
 
 # =========================
