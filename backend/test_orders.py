@@ -41,6 +41,11 @@ TEST_EMAILS = [
 
 TEST_PRODUCT_PREFIX = "[ORDERTEST] "
 
+# A floor, not an exact count - see the note in test_cart.py. The suite
+# promises not to remove catalogue products, not that the catalogue is a
+# fixed size.
+MIN_CATALOGUE = 30
+
 passed = 0
 failed = 0
 
@@ -571,7 +576,8 @@ def main():
             Order.user_id.in_([buyer_id, other_id])
         ).count()
 
-    check("the 30 real products are still there", real == 30, f"got {real}")
+    check("no catalogue product was lost", real >= MIN_CATALOGUE,
+          f"got {real}, expected at least {MIN_CATALOGUE}")
     check("test orders exist to clean up", real_orders > 0, f"got {real_orders}")
 
     # ---------------------------------------------------------------

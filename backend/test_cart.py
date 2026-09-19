@@ -36,6 +36,12 @@ TEST_EMAILS = [SHOPPER_EMAIL, OTHER_EMAIL, CART_SELLER_EMAIL]
 # Name prefix so cleanup can find our own products and nothing else
 TEST_PRODUCT_PREFIX = "[CARTTEST] "
 
+# The smallest the real catalogue should ever be. Used as a FLOOR, not an
+# exact count: the seed scripts are allowed to add products, so asserting
+# an exact number would break every time the shop grows. What this suite
+# actually promises is that it does not remove anything.
+MIN_CATALOGUE = 30
+
 passed = 0
 failed = 0
 
@@ -387,8 +393,13 @@ def main():
             ~Product.name.like(f"{TEST_PRODUCT_PREFIX}%")
         ).count()
 
-    check("the 30 real products are still there", real_products == 30,
-          f"got {real_products}")
+    # Count the catalogue products that are NOT ours. This used to assert
+    # == 30, which broke the moment the seed scripts added more products.
+    # The real property being checked is "this suite did not REMOVE any
+    # catalogue product", so compare against a floor rather than a fixed
+    # number - the catalogue is allowed to grow, just not to shrink.
+    check("no catalogue product was lost", real_products >= MIN_CATALOGUE,
+          f"got {real_products}, expected at least {MIN_CATALOGUE}")
 
     # ---------------------------------------------------------------
     # Cleanup

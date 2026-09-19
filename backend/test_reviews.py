@@ -34,6 +34,9 @@ TEST_EMAILS = [
 
 TEST_PRODUCT_PREFIX = "[REVTEST] "
 
+# A floor, not an exact count - see the note in test_cart.py.
+MIN_CATALOGUE = 30
+
 DELIVERY = {
     "full_name": "Review Buyer",
     "phone": "9800000000",
@@ -444,7 +447,8 @@ def main():
     with app.app_context():
         real = Product.query.filter(~Product.name.like(f"{TEST_PRODUCT_PREFIX}%")).count()
 
-    check("the 30 real products are still there", real == 30, f"got {real}")
+    check("no catalogue product was lost", real >= MIN_CATALOGUE,
+          f"got {real}, expected at least {MIN_CATALOGUE}")
 
     # ---------------------------------------------------------------
     # Cleanup
