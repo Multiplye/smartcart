@@ -10,6 +10,7 @@ import ProductDetail from "./components/ProductDetail";
 import Recommendations from "./components/Recommendations";
 import Admin from "./components/Admin";
 import Navbar from "./components/Navbar";
+import HeroArt from "./components/HeroArt";
 import PageLayout from "./components/PageLayout";
 import ScrollManager from "./components/ScrollManager";
 
@@ -85,13 +86,18 @@ function Home() {
           </div>
         </div>
 
+        {/*
+          The illustration used to be an <img> pointing at
+          src/assets/home.png. That file carried a visible "Google"
+          watermark and went soft on large screens, so it has been
+          replaced with an animated inline SVG component. See
+          components/HeroArt.jsx for why it is drawn rather than
+          loaded from a file.
+        */}
         <div className="hero-image">
           <div className="hero-image-bg"></div>
 
-          <img
-            src="/src/assets/home.png"
-            alt="SmartCart shopping"
-          />
+          <HeroArt />
         </div>
       </section>
 

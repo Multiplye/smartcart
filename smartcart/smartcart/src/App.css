@@ -325,18 +325,19 @@ img {
   animation: floatImage 5s ease-in-out infinite;
 }
 
-.hero-image img {
-  width: 85%;
-  max-height: 500px;
-
-  object-fit: contain;
+/* The hero illustration is an inline SVG (.hero-art), not an
+   <img>, so it can be animated part by part. The card styling
+   lives in the "HERO ART" block further down. */
+.hero-art {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
 
   position: relative;
   z-index: 2;
 
-  filter: drop-shadow(0 20px 25px rgba(49, 70, 90, 0.12));
-
-  animation: floatImage 5s ease-in-out infinite;
+  overflow: visible;
+  pointer-events: none;
 }
 
 
@@ -1898,6 +1899,158 @@ img {
 
   50% {
     transform: translateY(-10px);
+  }
+}
+
+/* --- Hero illustration motion -----------------------------------
+
+   Every animated part uses the same pattern:
+
+     * `transform-box: fill-box` makes the transform origin resolve
+       against the element's OWN bounding box. Without it, SVG
+       elements rotate and scale around the origin of the whole
+       canvas, which sends the cards flying off the edges.
+
+     * `transform-origin: center` then puts that origin in the
+       middle of the element, which is what you want.
+
+   The timings are deliberately staggered and the durations are
+   all slightly different (7s / 8s / 9s / 11s). If they matched,
+   the whole scene would pulse in unison and look mechanical.
+
+   `prefers-reduced-motion` at the bottom of this file switches
+   all of it off in one rule, so nothing here needs a special case.
+--------------------------------------------------------------- */
+
+.ha-phone {
+  transform-box: fill-box;
+  transform-origin: center;
+
+  animation: haFloat 7s ease-in-out infinite;
+}
+
+@keyframes haFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+/* Each card group drifts up and down on its own cycle. The cards
+   are read in pairs, so opposite cards are offset by half a phase
+   (see the negative delays) - that keeps the composition balanced
+   instead of every card rising at the same instant. */
+.ha-card {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.ha-card-1 {
+  animation: haDrift1 8s ease-in-out infinite;
+}
+
+.ha-card-2 {
+  animation: haDrift2 9s ease-in-out infinite;
+  animation-delay: -2s;
+}
+
+.ha-card-3 {
+  animation: haDrift2 7.5s ease-in-out infinite;
+  animation-delay: -1s;
+}
+
+.ha-card-4 {
+  animation: haDrift1 9.5s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.ha-card-5 {
+  animation: haDrift1 6.5s ease-in-out infinite;
+  animation-delay: -4s;
+}
+
+/* The two drift paths differ in both distance and direction, so
+   no two cards ever look synchronised. */
+@keyframes haDrift1 {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(0, -14px);
+  }
+}
+
+@keyframes haDrift2 {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(0, 12px);
+  }
+}
+
+/* The backdrop blob breathes very slowly. Any faster and it draws
+   attention to itself rather than to the phone. */
+.ha-blob {
+  transform-box: fill-box;
+  transform-origin: center;
+
+  animation: haBreathe 11s ease-in-out infinite;
+}
+
+@keyframes haBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+/* The decorative dots fade in and out on a long, irregular cycle
+   so they read as ambient sparkle rather than blinks. */
+.ha-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+
+  animation: haPulse 6s ease-in-out infinite;
+}
+
+.ha-dot-2 {
+  animation-duration: 7.4s;
+  animation-delay: -1.5s;
+}
+
+.ha-dot-3 {
+  animation-duration: 5.4s;
+  animation-delay: -2.6s;
+}
+
+.ha-dot-4 {
+  animation-duration: 8.2s;
+  animation-delay: -3.9s;
+}
+
+@keyframes haPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
   }
 }
 
