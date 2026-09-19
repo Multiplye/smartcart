@@ -1,14 +1,27 @@
 """
-SmartCart - add 15 Nepali-market products (5 Electronics, 5 Fashion,
-5 Home) to the catalogue.
+SmartCart - add 6 Nepali-market products to the catalogue
+(2 Electronics, 2 Fashion, 2 Home).
 
 WHY THIS EXISTS
 ---------------
 The original 30 products were generic (Wireless Headphones, Casual
 T-Shirt) with round-number prices. For a BIT project presented in Nepal
-they did not read as a real shop. This script adds a second wave of
-products that a Nepali customer would actually recognise, priced in
-realistic NPR.
+they did not read as a real shop. This script adds products that a
+Nepali customer would actually recognise, priced in realistic NPR.
+
+IT ORIGINALLY ADDED 15, AND 9 WERE REMOVED.
+
+Nine of the fifteen had image URLs that were composed from memory
+rather than looked up. Every URL returned HTTP 200 - which proved only
+that the FILE existed, not that it showed the right thing. A proper
+audit (download each image and look at it) found a Prada handbag for a
+Dhaka topi, a newspaper crossword for a power bank, and a portrait of a
+man for a USB cable. Those 9 were deleted by
+remove_bad_photo_products.py.
+
+So this list now contains ONLY the 6 products whose photos were
+verified by eye. Do not add a product here without checking its image
+first - the URL returning 200 is not evidence.
 
 SAFE TO RUN REPEATEDLY. It skips any product whose name already exists,
 so running it twice adds nothing the second time and never duplicates.
@@ -16,7 +29,7 @@ so running it twice adds nothing the second time and never duplicates.
 Usage (run from the backend folder):
     venv/Scripts/python.exe seed_nepali_products.py
 
-To remove everything this script added:
+To remove everything this script adds:
     venv/Scripts/python.exe seed_nepali_products.py --remove
 """
 
@@ -64,34 +77,6 @@ NEPALI_PRODUCTS = [
         ),
     },
     {
-        "name": "OnePlus Nord CE 4 Lite",
-        "category": "Electronics",
-        "price": 42999,
-        "stock": 6,
-        "image": img("1592899677977-9c10ca588bbd"),
-        "description": (
-            "A mid range 5G smartphone with a 120Hz AMOLED display, "
-            "5500mAh battery and 80W fast charging that refills the "
-            "phone in about half an hour. Snapdragon processor and "
-            "clean OxygenOS, popular with students and young "
-            "professionals who want speed without the flagship price."
-        ),
-    },
-    {
-        "name": "Xiaomi 20000mAh Power Bank",
-        "category": "Electronics",
-        "price": 2650,
-        "stock": 20,
-        "image": img("1585338107529-13afc5f02586"),
-        "description": (
-            "A 20000mAh power bank with dual USB output and 18W fast "
-            "charging. Big enough to recharge a phone four or five "
-            "times, which matters during load shedding and on long "
-            "bus journeys on Nepal's highways. Charges two devices "
-            "at once."
-        ),
-    },
-    {
         "name": "boAt Airdopes 141 Earbuds",
         "category": "Electronics",
         "price": 3499,
@@ -103,41 +88,6 @@ NEPALI_PRODUCTS = [
             "resistance for monsoon and workouts. Bluetooth 5.1 with "
             "a built in microphone for calls. One of the best selling "
             "budget earbuds in Nepal."
-        ),
-    },
-    {
-        "name": "Type-C Fast Charging Cable",
-        "category": "Electronics",
-        "price": 450,
-        "stock": 40,
-        "image": img("1583864697784-a0efc8379f70"),
-        "description": (
-            "A braided 1.5 metre Type-C cable rated for 3A fast "
-            "charging and 480Mbps data transfer. Reinforced connectors "
-            "resist the fraying that kills cheaper cables, and the "
-            "extra length reaches a wall socket from a bed or a desk."
-        ),
-    },
-    # ==========================================================
-    # FASHION
-    # ==========================================================
-    # The Pashmina is the one genuinely high value item in the shop.
-    # A real 100% pashmina shawl is 8000 rupees and up, and that price
-    # is part of why it exists here: it gives the recommender a large
-    # price signal to work with, alongside the 450 rupee cable at the
-    # other end.
-    {
-        "name": "Pashmina Wool Shawl",
-        "category": "Fashion",
-        "price": 8500,
-        "stock": 7,
-        "image": img("1601924994987-69e26d50dc26"),
-        "description": (
-            "A handwoven shawl in a soft pashmina and wool blend, with "
-            "traditional Himalayan patterning on the border. Warm "
-            "without being heavy, and light enough to fold into a bag. "
-            "A common gift for relatives visiting from abroad, and a "
-            "staple of the Thamel craft shops."
         ),
     },
     {
@@ -154,20 +104,6 @@ NEPALI_PRODUCTS = [
         ),
     },
     {
-        "name": "Dhaka Topi",
-        "category": "Fashion",
-        "price": 550,
-        "stock": 30,
-        "image": img("1590739225287-bd31519780c3"),
-        "description": (
-            "The traditional Nepali cap, handwoven from dhaka cloth in "
-            "a geometric pattern. Worn for festivals, formal occasions "
-            "and official dress, and given as a mark of respect. "
-            "Authentic handloom cotton rather than printed imitation, "
-            "so the weave varies slightly from piece to piece."
-        ),
-    },
-    {
         "name": "Goldstar Canvas Shoes",
         "category": "Fashion",
         "price": 1150,
@@ -181,50 +117,6 @@ NEPALI_PRODUCTS = [
         ),
     },
     {
-        "name": "Handwoven Cotton Tote Bag",
-        "category": "Fashion",
-        "price": 750,
-        "stock": 22,
-        "image": img("1544441893-675973e31985"),
-        "description": (
-            "A shoulder bag in handwoven cotton with a wide gusset for "
-            "groceries or books, and reinforced shoulder straps. Made "
-            "by women's cooperatives in Bhaktapur. A practical "
-            "alternative to plastic bags for the daily vegetable "
-            "market."
-        ),
-    },
-    # ==========================================================
-    # HOME
-    # ==========================================================
-    {
-        "name": "Hawkins 5L Pressure Cooker",
-        "category": "Home",
-        "price": 5250,
-        "stock": 9,
-        "image": img("1585515320310-259814833e62"),
-        "description": (
-            "A five litre aluminium pressure cooker with a safety "
-            "valve, used daily in most Nepali kitchens for dal bhat, "
-            "rice and beans. The 5 litre size is right for a family "
-            "of four. Cuts cooking time and fuel use substantially "
-            "compared with an open pot."
-        ),
-    },
-    {
-        "name": "Vacuum Insulated Steel Tumbler",
-        "category": "Home",
-        "price": 1450,
-        "stock": 24,
-        "image": img("1544787219-7f47ccb76574"),
-        "description": (
-            "A 500ml double walled stainless steel tumbler that keeps "
-            "tea hot for about six hours and cold drinks cold for "
-            "twelve. The lid seals properly, so it can go in a bag "
-            "without leaking, to an office or on a motorbike commute."
-        ),
-    },
-    {
         "name": "Copper Water Bottle",
         "category": "Home",
         "price": 1150,
@@ -235,20 +127,6 @@ NEPALI_PRODUCTS = [
             "in copper overnight is a long standing household practice "
             "in South Asia, traditionally believed to have health "
             "benefits. Holds about a litre, with a leak proof cap."
-        ),
-    },
-    {
-        "name": "Rattan Storage Basket Set",
-        "category": "Home",
-        "price": 1950,
-        "stock": 12,
-        "image": img("1595425970377-c9703cf48b6d"),
-        "description": (
-            "A set of three nested baskets woven from rattan by "
-            "craftspeople in the Terai. Useful for holding fruit, "
-            "folded clothes or the odds and ends that collect in a "
-            "room, and sturdy enough to stack. Lighter and warmer "
-            "looking than plastic storage."
         ),
     },
     {

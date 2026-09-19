@@ -19,6 +19,13 @@ dist-ssr/
 *.sqlite
 *.sqlite3
 
+# Safety copies of the database. These are made before any script that
+# deletes rows, and they end in .bak-... rather than .db - so the *.db
+# rule above did NOT match them and they were one `git add -A` away
+# from being committed with the password hashes inside.
+*.db.bak*
+*.bak-before-*
+
 # ---- Secrets ----
 .env
 .env.local
