@@ -456,7 +456,11 @@ passing**:
 | `test_admin.py` | 78 | **Everything an admin is NOT allowed to do** |
 
 **430 assertions, 0 failures — verified by running the full set twice
-in succession.**
+in succession, and reproducible in one command:**
+
+```bash
+./venv/Scripts/python run_all_tests.py
+```
 
 ### 9.1 Testing the AI, not just the plumbing
 
@@ -695,10 +699,14 @@ npm run dev                   # serve on :5173
 
 ```bash
 cd backend
-./venv/Scripts/python seed_demo_data.py          # realistic demo shop
-./venv/Scripts/python demo_recommendations.py    # prove personalisation
-./venv/Scripts/python test_products.py           # and the five others
+./venv/Scripts/python run_all_tests.py          # every suite, one total
+./venv/Scripts/python seed_demo_data.py         # realistic demo shop
+./venv/Scripts/python demo_recommendations.py   # prove personalisation
 ```
+
+`run_all_tests.py` runs all seven suites, prints only the failures, and
+gives one combined total. It exits non-zero if anything failed, so it
+works as a single health check.
 
 ### Demo accounts
 
