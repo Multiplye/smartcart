@@ -3890,51 +3890,18 @@ button,
 }
 
 /* ---------- Header ----------
-   Replaced a bare three-line stack that left half the page empty.
-   Now a banner with the copy on the left and an engine-status panel
-   on the right, on a soft tinted band that separates it from the grid. */
+   One centred column with a capped width. Centring is what stops the
+   copy looking stranded: a left-aligned block on a wide page reads as
+   unfinished, a centred block reads as deliberate. */
 
 .rec-header {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.95fr);
-  gap: 36px;
-  align-items: center;
 
-  margin-bottom: 40px;
-  padding: 38px 40px;
+  max-width: 680px;
+  margin: 0 auto 44px;
+  padding: 44px 0 40px;
 
-  border: 1px solid rgba(137, 89, 230, 0.14);
-  border-radius: 22px;
-  background: linear-gradient(
-    135deg,
-    rgba(217, 240, 255, 0.5) 0%,
-    #ffffff 62%
-  );
-  overflow: hidden;
-}
-
-/* A soft wash in the corner. Purely decorative, so it is not announced
-   and cannot be clicked. */
-.rec-header::after {
-  content: "";
-  position: absolute;
-  top: -90px;
-  right: -70px;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(137, 89, 230, 0.12) 0%,
-    rgba(137, 89, 230, 0) 70%
-  );
-  pointer-events: none;
-}
-
-.rec-header-text {
-  position: relative;
-  z-index: 1;
+  text-align: center;
 }
 
 .rec-header-label {
@@ -3950,9 +3917,9 @@ button,
 }
 
 .rec-header h1 {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   font-family: "Poppins", sans-serif;
-  font-size: clamp(2rem, 4vw, 2.9rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: -0.03em;
@@ -3960,15 +3927,14 @@ button,
 }
 
 .rec-header h1 span {
-  display: block;
   font-style: italic;
   font-weight: 500;
 }
 
-.rec-header-text p {
-  margin: 16px 0 0;
-  max-width: 520px;
-  font-size: 0.98rem;
+.rec-header p {
+  margin: 16px auto 0;
+  max-width: 540px;
+  font-size: 1rem;
   line-height: 1.7;
   color: var(--muted);
 }
@@ -3977,8 +3943,9 @@ button,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 20px;
-  margin-top: 22px;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 26px;
 }
 
 .rec-header-link {
@@ -4004,65 +3971,6 @@ button,
 .rec-header-link-quiet:hover {
   color: var(--dark-blue);
   border-bottom-color: rgba(49, 70, 90, 0.25);
-}
-
-/* ---------- Engine status ---------- */
-
-.rec-header-status {
-  position: relative;
-  z-index: 1;
-
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  padding: 22px 24px;
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(6px);
-}
-
-.rec-status-title {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.rec-status-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 0.86rem;
-}
-
-.rec-status-key {
-  color: var(--muted);
-}
-
-.rec-status-row strong {
-  margin-left: auto;
-  text-align: right;
-  font-weight: 600;
-  color: var(--dark-blue);
-}
-
-/* The only colour that carries meaning here, so it is paired with the
-   word "Yes"/"No" beside it for anyone who cannot rely on colour. */
-.rec-status-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #c9ced3;
-  box-shadow: 0 0 0 3px rgba(201, 206, 211, 0.25);
-}
-
-.rec-status-dot[data-on="true"] {
-  background: #1f9d55;
-  box-shadow: 0 0 0 3px rgba(31, 157, 85, 0.18);
 }
 
 /* ---------- Skeleton cards ---------- */
@@ -4535,24 +4443,13 @@ button,
   }
 }
 
-/* The header stacks before it gets cramped. 900px rather than 780px
-   because two columns of text start to squeeze well before the cards
-   do. */
-@media (max-width: 900px) {
-  .rec-header {
-    grid-template-columns: 1fr;
-    gap: 26px;
-    padding: 30px 26px;
-  }
-
-  .rec-header-status {
-    padding: 18px 20px;
-  }
-}
-
+/* The header is a single centred column now, so it needs no stacking
+   rule of its own - it already fits any width. Only the padding is
+   trimmed on small screens. */
 @media (max-width: 600px) {
   .rec-header {
-    padding: 26px 20px;
+    padding: 30px 0 28px;
+    margin-bottom: 34px;
   }
 
   .rec-header-actions {
