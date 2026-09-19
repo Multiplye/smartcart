@@ -8,6 +8,7 @@ import Checkout from "./components/Checkout";
 import Orders from "./components/Orders";
 import ProductDetail from "./components/ProductDetail";
 import Recommendations from "./components/Recommendations";
+import Admin from "./components/Admin";
 
 import { useAuth } from "./context/useAuth";
 import { useCart } from "./context/useCart";
@@ -51,6 +52,7 @@ function Home() {
           {(isSeller || isAdmin) && (
             <Link to="/manage">Manage</Link>
           )}
+          {isAdmin && <Link to="/admin">Admin</Link>}
           <a href="#categories">Categories</a>
           <a href="#about">About</a>
           <a href="#auth">
@@ -602,6 +604,9 @@ function App() {
 
       {/* SELLER / ADMIN PRODUCT MANAGEMENT */}
       <Route path="/manage" element={<ManageProducts />} />
+
+      {/* ADMIN PANEL - the backend rejects anyone who is not an admin */}
+      <Route path="/admin" element={<Admin />} />
 
     </Routes>
   );

@@ -1800,6 +1800,281 @@ def register():
 
 
 # =========================
+# ADMIN PANEL
+# =========================
+#
+# Every route here is guarded by @roles_required("admin"). That is the
+# only thing standing between a normal shopper and the ability to delete
+# accounts, so each one is written to be safe even if called directly
+# with a hand-crafted request - the decorator checks the ROLE IN THE
+# DATABASE, not anything the client claims about itself.
+
+def account_counts_for(user_ids):
+    """One query for how many orders each account has placed.
+
+    Same pattern as rating_summary_for: rather than looping over the
+    users and running a count per user, we group by user_id and hand
+    back a dictionary. On a small project that is tidy; on a real one it
+    is the difference between one query and ten thousand.
+    """
+    if not user_ids:
+        return {}
+
+    rows = (
+        db.session.query(Order.user_id, db.func.count(Order.id))
+        .filter(Order.user_id.in_(user_ids))
+        .group_by(Order.user_id)
+        .all()
+    )
+
+    return {user_id: count for user_id, count in rows}
+
+
+def admin_user_to_dict(user, order_count=0):
+    """A user row for the admin table, with a little context attached."""
+    body = user_to_dict(user)
+    body["order_count"] = order_count
+    return body
+
+
+@app.route("/api/admin/users", methods=["GET"])
+@roles_required("admin")
+def admin_list_users():
+    """Every account, newest first, with how many orders each has placed."""
+
+    users = User.query.order_by(User.id.desc()).all()
+
+    counts = account_counts_for([user.id for user in users])
+
+    return {
+        "users": [
+            admin_user_to_dict(user, counts.get(user.id, 0)) for user in users
+        ],
+        "count": len(users),
+    }
+
+
+@app.route("/api/admin/users/<int:user_id>/role", methods=["PUT"])
+@roles_required("admin")
+def admin_change_role(user_id):
+    """Promote or demote an account.
+
+    Three guards, because this is the most dangerous route in the app:
+
+      1. The role must be one we recognise.
+      2. You cannot change your own role. Otherwise the only admin could
+         demote themselves and lock everyone out of the panel.
+      3. You cannot demote the last remaining admin, for the same
+         reason even if a second admin does it.
+    """
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return {"error": "User not found."}, 404
+
+    data = request.get_json() or {}
+    new_role = (data.get("role") or "").strip().lower()
+
+    if new_role not in ROLES:
+        return {
+            "error": f"Role must be one of: {', '.join(ROLES)}."
+        }, 400
+
+    if user.id == request.current_user.id:
+        return {
+            "error": (
+                "You cannot change your own role. Ask another admin to "
+                "do it for you."
+            )
+        }, 403
+
+    if user.role == "admin" and new_role != "admin":
+        remaining = User.query.filter(
+            User.role == "admin", User.id != user.id
+        ).count()
+
+        if remaining == 0:
+            return {
+                "error": (
+                    "This is the last admin account. Make somebody else "
+                    "an admin first, or nobody will be able to manage "
+                    "the site."
+                )
+            }, 403
+
+    user.role = new_role
+    db.session.commit()
+
+    return {
+        "message": f"{user.name} is now a {new_role}.",
+        "user": admin_user_to_dict(user),
+    }, 200
+
+
+@app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])
+@roles_required("admin")
+def admin_delete_user(user_id):
+    """Delete an account and everything that depends on it.
+
+    A user row is referenced by carts, orders, order items and reviews.
+    Deleting the user without dealing with those would leave orphaned
+    rows pointing at an id that no longer exists, which would then break
+    every later join. So this route cleans up in dependency order inside
+    one transaction - either all of it happens or none of it does.
+    """
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return {"error": "User not found."}, 404
+
+    if user.id == request.current_user.id:
+        return {
+            "error": "You cannot delete your own account while logged in."
+        }, 403
+
+    if user.role == "admin":
+        remaining = User.query.filter(
+            User.role == "admin", User.id != user.id
+        ).count()
+
+        if remaining == 0:
+            return {
+                "error": "You cannot delete the last admin account."
+            }, 403
+
+    try:
+        # 1. Reviews this user wrote
+        Review.query.filter(Review.user_id == user.id).delete(
+            synchronize_session=False
+        )
+
+        # 2. Their cart
+        CartItem.query.filter(CartItem.user_id == user.id).delete(
+            synchronize_session=False
+        )
+
+        # 3. Order items belonging to their orders, then the orders.
+        #    We delete the lines first because order_item points at
+        #    order, and a child row cannot outlive its parent.
+        order_ids = [
+            row.id
+            for row in db.session.query(Order.id)
+            .filter(Order.user_id == user.id)
+            .all()
+        ]
+
+        if order_ids:
+            OrderItem.query.filter(
+                OrderItem.order_id.in_(order_ids)
+            ).delete(synchronize_session=False)
+
+        Order.query.filter(Order.user_id == user.id).delete(
+            synchronize_session=False
+        )
+
+        # 4. Their product listings. We do NOT delete the products -
+        #    past orders refer to them by id, and a customer's history
+        #    should not silently lose lines. Instead we hand them back
+        #    to the shop, exactly as the 30 seeded products are.
+        Product.query.filter(Product.seller_id == user.id).update(
+            {"seller_id": None}, synchronize_session=False
+        )
+
+        # 5. Finally, the account itself
+        db.session.delete(user)
+        db.session.commit()
+
+    except Exception as error:
+        db.session.rollback()
+        return {"error": f"Could not delete the account: {error}"}, 500
+
+    return {
+        "message": f"Deleted {user.name} and their orders and reviews.",
+        "deleted_id": user_id,
+    }, 200
+
+
+@app.route("/api/admin/stats", methods=["GET"])
+@roles_required("admin")
+def admin_stats():
+    """The numbers on the top of the admin dashboard."""
+
+    # Revenue counts only orders that were not cancelled - a cancelled
+    # order is not money we ever collected.
+    revenue = (
+        db.session.query(db.func.sum(Order.total))
+        .filter(Order.status != "Cancelled")
+        .scalar()
+    )
+
+    status_rows = (
+        db.session.query(Order.status, db.func.count(Order.id))
+        .group_by(Order.status)
+        .all()
+    )
+
+    # Start every status at zero so the chart has all five bars even
+    # when nothing has been ordered yet.
+    orders_by_status = {status: 0 for status in ORDER_STATUSES}
+    orders_by_status.update(
+        {status: count for status, count in status_rows}
+    )
+
+    return {
+        "users": User.query.count(),
+        "sellers": User.query.filter_by(role="seller").count(),
+        "admins": User.query.filter_by(role="admin").count(),
+        "products": Product.query.count(),
+        "out_of_stock": Product.query.filter(Product.stock < 1).count(),
+        "orders": Order.query.count(),
+        "reviews": Review.query.count(),
+        "revenue": round(float(revenue or 0), 2),
+        "orders_by_status": orders_by_status,
+    }
+
+
+@app.route("/api/admin/products", methods=["GET"])
+@roles_required("admin")
+def admin_list_products():
+    """Every product with its owner's name, so the admin can see at a
+    glance which listings belong to a seller and which are shop stock.
+
+    Left un-filtered on purpose - the admin is the one role that is
+    meant to see the whole catalogue at once.
+    """
+
+    products = Product.query.order_by(Product.id.desc()).all()
+
+    owners = {
+        user.id: user.name
+        for user in User.query.filter(
+            User.id.in_(
+                [p.seller_id for p in products if p.seller_id is not None]
+            )
+        ).all()
+    }
+
+    ratings = rating_summary_for([product.id for product in products])
+
+    payload = []
+
+    for product in products:
+        summary = ratings.get(product.id, {"average": 0.0, "count": 0})
+
+        as_dict = product_to_dict(product, summary)
+
+        as_dict["seller_name"] = (
+            owners.get(product.seller_id) if product.seller_id else None
+        )
+
+        payload.append(as_dict)
+
+    return {"products": payload, "count": len(payload)}
+
+
+# =========================
 # LOGIN
 # =========================
 

@@ -193,6 +193,42 @@ export async function getRecommendations(limit) {
 }
 
 // =========================
+// Admin
+// =========================
+//
+// Every one of these needs an admin account. The backend checks the
+// role in the database on each request, so hiding these buttons in the
+// UI is a convenience, not the security boundary.
+
+/** Every account, newest first, with an order count each. */
+export async function getAdminUsers() {
+  return requestJson("/api/admin/users");
+}
+
+/** Promote or demote somebody. role is "buyer" | "seller" | "admin". */
+export async function setUserRole(userId, role) {
+  return requestJson(`/api/admin/users/${userId}/role`, {
+    method: "PUT",
+    body: { role },
+  });
+}
+
+/** Delete an account along with their cart, orders and reviews. */
+export async function deleteUser(userId) {
+  return requestJson(`/api/admin/users/${userId}`, { method: "DELETE" });
+}
+
+/** Counts for the top of the dashboard. */
+export async function getAdminStats() {
+  return requestJson("/api/admin/stats");
+}
+
+/** The whole catalogue, including who owns each listing. */
+export async function getAdminProducts() {
+  return requestJson("/api/admin/products");
+}
+
+// =========================
 // Cart
 // =========================
 //
