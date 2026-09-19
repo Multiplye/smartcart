@@ -230,14 +230,76 @@ function Recommendations() {
 
   return (
     <main className="page-wrapper">
-      <section className="page-head">
-        <span className="section-label">SMART RECOMMENDATIONS</span>
+      {/* ==========================================
+          HEADER
+          ==========================================
+          This was a bare left-aligned stack of three lines on a wide
+          empty page, and it read as unfinished.
 
-        <h1>
-          Picked <span>For You</span>
-        </h1>
+          It is now a self-contained banner: the text sits on the left,
+          a colour-coded "engine status" panel sits on the right so the
+          row is not half empty, and the header band visually separates
+          itself from the grid below.
 
-        <p>{explanation}</p>
+          The status panel is the honest bit. It reports whether the
+          list in front of you was actually personalised, rather than
+          just asserting that SmartCart has AI. */}
+      <section className="rec-header ai-rise">
+        <div className="rec-header-text">
+          <span className="rec-header-label">
+            SMART RECOMMENDATIONS
+          </span>
+
+          <h1>
+            Picked <span>For You</span>
+          </h1>
+
+          <p>{explanation}</p>
+
+          <div className="rec-header-actions">
+            {isPersonal ? (
+              <Link to="/orders" className="rec-header-link">
+                Your orders →
+              </Link>
+            ) : (
+              <Link to="/products" className="rec-header-link">
+                Browse products →
+              </Link>
+            )}
+
+            {!isPersonal && (
+              /* There is no /login route - signing in happens in the
+                 auth section of the home page, so link to that hash. */
+              <Link to="/#auth" className="rec-header-link rec-header-link-quiet">
+                {isLoggedIn ? "See how to personalise" : "Log in"}
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Sits still while the list loads, so the header never jumps
+            and the page does not appear empty from the moment it opens. */}
+        <aside className="rec-header-status">
+          <span className="rec-status-title">Engine status</span>
+
+          <div className="rec-status-row">
+            <span className="rec-status-dot" data-on={isPersonal} />
+            <span className="rec-status-key">Personalised</span>
+            <strong>{isPersonal ? "Yes" : "No"}</strong>
+          </div>
+
+          <div className="rec-status-row">
+            <span className="rec-status-key">Source</span>
+            <strong>
+              {isPersonal ? "Your order history" : "Popularity"}
+            </strong>
+          </div>
+
+          <div className="rec-status-row">
+            <span className="rec-status-key">Method</span>
+            <strong>TF-IDF · cosine</strong>
+          </div>
+        </aside>
       </section>
 
       {loading && (
