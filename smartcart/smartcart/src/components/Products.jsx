@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getProducts } from "../data/api";
 import { useCart } from "../context/useCart";
+import Stars from "./Stars";
 
 function Products() {
   const [searchParams] = useSearchParams();
@@ -143,21 +144,41 @@ function Products() {
               className="product-card"
               key={product.id}
             >
-              <div className="product-image">
+              {/* Clicking the image or the name opens the full product
+                  page, where the reviews live. */}
+              <Link
+                to={`/product/${product.id}`}
+                className="product-image"
+              >
                 <img
                   src={product.image}
                   alt={product.name}
                 />
-              </div>
+              </Link>
 
               <div className="product-info">
                 <small>
                   {product.category}
                 </small>
 
-                <h3>
-                  {product.name}
-                </h3>
+                <Link
+                  to={`/product/${product.id}`}
+                  className="product-name-link"
+                >
+                  <h3>
+                    {product.name}
+                  </h3>
+                </Link>
+
+                <div className="card-rating">
+                  <Stars value={product.rating_average || 0} size="sm" />
+
+                  <span>
+                    {product.rating_count > 0
+                      ? `${product.rating_average} (${product.rating_count})`
+                      : "No reviews"}
+                  </span>
+                </div>
 
                 <p className="product-price">
                   Rs. {product.price.toLocaleString()}

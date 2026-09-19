@@ -6,6 +6,7 @@ import Products from "./components/Products";
 import ManageProducts from "./components/ManageProducts";
 import Checkout from "./components/Checkout";
 import Orders from "./components/Orders";
+import ProductDetail from "./components/ProductDetail";
 
 import { useAuth } from "./context/useAuth";
 import { useCart } from "./context/useCart";
@@ -582,6 +583,9 @@ function App() {
 
       {/* ALL PRODUCTS PAGE */}
       <Route path="/products" element={<Products />} />
+
+      {/* ONE PRODUCT - with its reviews */}
+      <Route path="/product/:productId" element={<ProductDetail />} />
 
       {/* CHECKOUT - cart to order */}
       <Route path="/checkout" element={<Checkout />} />

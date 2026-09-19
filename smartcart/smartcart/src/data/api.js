@@ -241,6 +241,44 @@ export async function cancelOrder(orderId) {
 }
 
 // =========================
+// Reviews
+// =========================
+
+/**
+ * Read a product's reviews. Open to everyone, no login needed.
+ * Returns { product_id, summary: { average, count }, reviews: [...] }
+ */
+export async function getProductReviews(productId) {
+  return requestJson(`/api/products/${productId}/reviews`);
+}
+
+/** Add a review. You must have ordered the product. */
+export async function createReview(productId, { rating, comment }) {
+  return requestJson(`/api/products/${productId}/reviews`, {
+    method: "POST",
+    body: { rating, comment },
+  });
+}
+
+/** Edit your own review. Send only the fields you want to change. */
+export async function updateReview(reviewId, { rating, comment }) {
+  const body = {};
+
+  if (rating !== undefined) body.rating = rating;
+  if (comment !== undefined) body.comment = comment;
+
+  return requestJson(`/api/reviews/${reviewId}`, {
+    method: "PUT",
+    body,
+  });
+}
+
+/** Delete your own review. */
+export async function deleteReview(reviewId) {
+  return requestJson(`/api/reviews/${reviewId}`, { method: "DELETE" });
+}
+
+// =========================
 // Accounts
 // =========================
 

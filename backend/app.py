@@ -208,6 +208,50 @@ class OrderItem(db.Model):
         return round(self.unit_price * self.quantity, 2)
 
 
+# =========================
+# Review Model
+# =========================
+#
+# One row = one person's star rating and comment about one product.
+#
+# Two rules worth noting:
+#
+#   1. A UNIQUE constraint on (user_id, product_id) means you cannot
+#      review the same product twice. Without it, one enthusiastic
+#      shopper could post fifty 5-star reviews and drag the average up.
+#
+#   2. You may only review a product you have actually ORDERED. That
+#      check happens in the route, not here, because it needs to look at
+#      the order history.
+
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False
+    )
+
+    product_id = db.Column(
+        db.Integer,
+        db.ForeignKey("product.id"),
+        nullable=False
+    )
+
+    # 1 to 5 stars
+    rating = db.Column(db.Integer, nullable=False)
+
+    comment = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "product_id", name="one_review_per_user_product"),
+    )
+
+
+
 
 
 # =========================
@@ -225,8 +269,15 @@ def home():
 # HELPER: Product -> dictionary
 # =========================
 
-def product_to_dict(product):
-    return {
+def product_to_dict(product, rating=None):
+    """Convert a Product to JSON.
+
+    `rating` is worked out separately and passed in, because averaging
+    ratings needs a database query and we do not want one query per
+    product. The caller looks them all up in a single grouped query and
+    hands each product its own summary.
+    """
+    body = {
         "id": product.id,
         "name": product.name,
         "description": product.description,
@@ -236,6 +287,12 @@ def product_to_dict(product):
         "stock": product.stock,
         "seller_id": product.seller_id,
     }
+
+    if rating is not None:
+        body["rating_average"] = rating["average"]
+        body["rating_count"] = rating["count"]
+
+    return body
 
 
 def user_to_dict(user):
@@ -392,7 +449,19 @@ def get_products():
 
     products = query.all()
 
-    return [product_to_dict(product) for product in products]
+    # One grouped query for all the ratings, rather than one per product
+    ratings = rating_summary_for([product.id for product in products])
+
+    # Every product gets both rating fields, even when it has no reviews
+    # at all. Missing keys would force the frontend to guard against
+    # `undefined` on some products and a number on others - an easy
+    # source of bugs. A consistent shape is worth the extra default.
+    empty = {"average": 0.0, "count": 0}
+
+    return [
+        product_to_dict(product, ratings.get(product.id, empty))
+        for product in products
+    ]
 
 
 @app.route("/api/products/<int:product_id>", methods=["GET"])
@@ -404,7 +473,7 @@ def get_single_product(product_id):
     if product is None:
         return {"error": "Product not found."}, 404
 
-    return product_to_dict(product)
+    return product_to_dict(product, rating_for(product_id))
 
 
 # =========================
@@ -1214,6 +1283,268 @@ def cancel_order(order_id):
     return {
         "message": f"Order #{order.id} was cancelled and the stock was returned.",
         "order": order_to_dict(order),
+    }, 200
+
+
+# =========================
+# REVIEWS AND RATINGS
+# =========================
+
+def rating_summary_for(product_ids):
+    """Work out the average rating for a list of products.
+
+    Returns { product_id: {"average": 4.5, "count": 12} }.
+
+    Why one query instead of one per product? Because a product listing
+    page shows 30 products, and 30 separate lookups to draw 30 little
+    star badges is wasteful. This does it in a single grouped query.
+
+    SQLAlchemy's func.avg and func.count turn into SQL AVG() and
+    COUNT(), so the database does the arithmetic, not Python.
+    """
+    if not product_ids:
+        return {}
+
+    rows = (
+        db.session.query(
+            Review.product_id,
+            db.func.avg(Review.rating),
+            db.func.count(Review.id),
+        )
+        .filter(Review.product_id.in_(product_ids))
+        .group_by(Review.product_id)
+        .all()
+    )
+
+    return {
+        product_id: {
+            "average": round(float(average), 1),
+            "count": count,
+        }
+        for product_id, average, count in rows
+    }
+
+
+def rating_for(product_id):
+    """The summary for a single product, with a safe empty default."""
+    return rating_summary_for([product_id]).get(
+        product_id, {"average": 0.0, "count": 0}
+    )
+
+
+def has_ordered(user_id, product_id):
+    """Has this user ever had this product in a placed order?
+
+    Used to make sure only real customers can review. Note we check the
+    ORDER, not the cart - browsing is not buying.
+    """
+    return (
+        db.session.query(OrderItem.id)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(Order.user_id == user_id, OrderItem.product_id == product_id)
+        .first()
+        is not None
+    )
+
+
+@app.route("/api/products/<int:product_id>/reviews", methods=["GET"])
+def get_product_reviews(product_id):
+    """List every review for a product, newest first. Open to everyone."""
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    reviews = (
+        Review.query.filter_by(product_id=product_id)
+        .order_by(Review.created_at.desc(), Review.id.desc())
+        .all()
+    )
+
+    # Look up the reviewer names in one go
+    user_ids = [review.user_id for review in reviews]
+
+    names = {}
+
+    if user_ids:
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        names = {user.id: user.name for user in users}
+
+    return {
+        "product_id": product_id,
+        "summary": rating_for(product_id),
+        "reviews": [
+            {
+                "id": review.id,
+                "user_id": review.user_id,
+                "reviewer_name": names.get(review.user_id, "SmartCart user"),
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at.isoformat()
+                if review.created_at
+                else None,
+            }
+            for review in reviews
+        ],
+    }
+
+
+@app.route("/api/products/<int:product_id>/reviews", methods=["POST"])
+@roles_required("buyer", "seller", "admin")
+def create_review(product_id):
+    """Add a review. You must have ordered the product first.
+
+    Body: { "rating": 4, "comment": "..." }
+    """
+
+    user = request.current_user
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    data = request.get_json(silent=True) or {}
+
+    # --- Rating must be 1 to 5 ---
+    try:
+        rating = int(data.get("rating"))
+    except (TypeError, ValueError):
+        return {"error": "Rating must be a whole number from 1 to 5."}, 400
+
+    if rating < 1 or rating > 5:
+        return {"error": "Rating must be between 1 and 5 stars."}, 400
+
+    comment = (data.get("comment") or "").strip()
+
+    if len(comment) > 1000:
+        return {"error": "Comment is too long (1000 characters maximum)."}, 400
+
+    # --- Only real customers may review ---
+    if not has_ordered(user.id, product_id):
+        return {
+            "error": (
+                "You can only review products you have ordered and "
+                "received."
+            )
+        }, 403
+
+    # --- One review per person per product ---
+    existing = Review.query.filter_by(
+        user_id=user.id, product_id=product_id
+    ).first()
+
+    if existing:
+        return {
+            "error": "You have already reviewed this product. "
+                     "You can edit your review instead."
+        }, 409
+
+    review = Review(
+        user_id=user.id,
+        product_id=product_id,
+        rating=rating,
+        comment=comment or None,
+    )
+
+    db.session.add(review)
+    db.session.commit()
+
+    return {
+        "message": "Thanks for your review!",
+        "summary": rating_for(product_id),
+        "review": {
+            "id": review.id,
+            "user_id": user.id,
+            "reviewer_name": user.name,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at.isoformat()
+            if review.created_at
+            else None,
+        },
+    }, 201
+
+
+@app.route("/api/reviews/<int:review_id>", methods=["PUT"])
+@roles_required("buyer", "seller", "admin")
+def update_review(review_id):
+    """Edit your own review. Admins may edit any review.
+
+    Body: { "rating": 3, "comment": "..." }
+    Both fields are optional - send only what you want to change.
+    """
+
+    user = request.current_user
+    review = db.session.get(Review, review_id)
+
+    if review is None:
+        return {"error": "Review not found."}, 404
+
+    if review.user_id != user.id and user.role != "admin":
+        return {"error": "You can only edit your own review."}, 403
+
+    data = request.get_json(silent=True) or {}
+
+    if "rating" in data:
+        try:
+            rating = int(data["rating"])
+        except (TypeError, ValueError):
+            return {"error": "Rating must be a whole number from 1 to 5."}, 400
+
+        if rating < 1 or rating > 5:
+            return {"error": "Rating must be between 1 and 5 stars."}, 400
+
+        review.rating = rating
+
+    if "comment" in data:
+        comment = (data["comment"] or "").strip()
+
+        if len(comment) > 1000:
+            return {"error": "Comment is too long (1000 characters maximum)."}, 400
+
+        review.comment = comment or None
+
+    db.session.commit()
+
+    return {
+        "message": "Your review was updated.",
+        "summary": rating_for(review.product_id),
+        "review": {
+            "id": review.id,
+            "user_id": review.user_id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at.isoformat()
+            if review.created_at
+            else None,
+        },
+    }, 200
+
+
+@app.route("/api/reviews/<int:review_id>", methods=["DELETE"])
+@roles_required("buyer", "seller", "admin")
+def delete_review(review_id):
+    """Delete your own review. Admins may delete any review."""
+
+    user = request.current_user
+    review = db.session.get(Review, review_id)
+
+    if review is None:
+        return {"error": "Review not found."}, 404
+
+    if review.user_id != user.id and user.role != "admin":
+        return {"error": "You can only delete your own review."}, 403
+
+    product_id = review.product_id
+
+    db.session.delete(review)
+    db.session.commit()
+
+    return {
+        "message": "Your review was removed.",
+        "summary": rating_for(product_id),
     }, 200
 
 

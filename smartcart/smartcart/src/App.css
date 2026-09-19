@@ -2553,3 +2553,323 @@ button,
     padding: 18px 16px;
   }
 }
+
+
+/* =====================================================
+   STAR RATINGS
+===================================================== */
+
+.stars {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+
+  line-height: 0;
+}
+
+.stars-layer {
+  display: flex;
+
+  gap: 2px;
+}
+
+/* The highlighted overlay sits on top of the grey stars, clipped to
+   whatever width the average works out to. */
+.stars-fill-clip {
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  overflow: hidden;
+
+  height: 100%;
+}
+
+.stars-clickable {
+  gap: 2px;
+}
+
+.star-button {
+  padding: 0;
+
+  border: none;
+
+  background: none;
+
+  cursor: pointer;
+
+  line-height: 0;
+
+  transition: transform 0.12s ease;
+}
+
+.star-button:hover {
+  transform: scale(1.15);
+}
+
+/* Small variant, for cards and inline use */
+.stars-sm .stars-layer svg {
+  width: 14px;
+  height: 14px;
+}
+
+.card-rating {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  margin-bottom: 8px;
+}
+
+.card-rating span {
+  color: var(--text-muted, #6b7280);
+
+  font-size: 12px;
+}
+
+.product-name-link {
+  text-decoration: none;
+}
+
+.product-name-link h3 {
+  transition: color 0.15s ease;
+}
+
+.product-name-link:hover h3 {
+  color: var(--purple);
+}
+
+
+/* =====================================================
+   PRODUCT DETAIL PAGE
+===================================================== */
+
+.detail-wrapper {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+
+  max-width: 1000px;
+
+  margin: 0 auto 60px;
+
+  align-items: start;
+}
+
+.detail-image img {
+  width: 100%;
+
+  aspect-ratio: 1 / 1;
+
+  object-fit: cover;
+
+  border-radius: 20px;
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+
+  gap: 14px;
+}
+
+.detail-rating-row {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.detail-rating-row span {
+  color: var(--text-muted, #6b7280);
+
+  font-size: 13px;
+}
+
+.detail-price {
+  margin: 0;
+
+  color: var(--dark-blue);
+
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.detail-description {
+  margin: 0;
+
+  color: var(--text-muted, #6b7280);
+
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+
+.detail-stock {
+  font-size: 13.5px;
+}
+
+.in-stock {
+  color: #166534;
+  font-weight: 600;
+}
+
+.out-of-stock {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.detail-add-btn {
+  width: auto;
+
+  padding: 14px 32px;
+}
+
+
+/* =====================================================
+   REVIEWS
+===================================================== */
+
+.reviews-section {
+  max-width: 760px;
+
+  margin: 0 auto;
+}
+
+.reviews-heading {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-bottom: 20px;
+
+  color: var(--dark-blue);
+
+  font-size: 22px;
+}
+
+.reviews-heading-count {
+  padding: 3px 11px;
+
+  border-radius: 999px;
+
+  background: var(--light-bg, #f1f5f9);
+  color: var(--text-muted, #6b7280);
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.review-hint {
+  margin: 0 0 18px;
+
+  color: var(--text-muted, #6b7280);
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.review-form-wrapper {
+  padding: 22px 24px;
+
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+
+  background: var(--white, #fff);
+
+  margin-bottom: 24px;
+}
+
+.review-form-wrapper h3 {
+  margin: 0 0 6px;
+
+  color: var(--dark-blue);
+
+  font-size: 16px;
+}
+
+.review-rating-input {
+  margin-bottom: 16px;
+}
+
+.review-rating-input label {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color: var(--dark-blue);
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 14px;
+}
+
+.review-card {
+  padding: 18px 20px;
+
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+
+  background: var(--white, #fff);
+}
+
+/* Your own review gets a quiet highlight so it stands out */
+.review-mine {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+}
+
+.review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 14px;
+}
+
+.review-head strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--dark-blue);
+
+  font-size: 14px;
+}
+
+.review-actions {
+  display: flex;
+
+  gap: 8px;
+}
+
+.review-card p {
+  margin: 12px 0 0;
+
+  color: var(--text-muted, #6b7280);
+
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+
+/* =====================================================
+   RESPONSIVE - detail page
+===================================================== */
+
+@media (max-width: 780px) {
+  .detail-wrapper {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
