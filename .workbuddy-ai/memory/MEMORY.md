@@ -31,6 +31,9 @@ unless the user asks.
   `socket.bind()`, not netstat.
 - Editing `backend/app.py` restarts Flask (it watches files). Any background
   shell running the server will report as failed — just restart it.
+- eslint `react-hooks/set-state-in-effect` fires when an effect calls setState
+  synchronously. Fix by wrapping async work in an IIFE inside the effect and
+  deriving display flags, NOT with `eslint-disable`.
 
 ## Version control (set up 2026-09-19)
 - The project had NO git repo. Initialized one; first commit `e72b424`, 38 files.
@@ -53,8 +56,32 @@ unless the user asks.
   Emails lowercased, so login is case-insensitive.
 
 ## API
-`GET /` · `GET|POST /api/products` · `POST /api/register` (201|400|409) ·
-`POST /api/login` (200|400|401)
+| Method | Path | Who |
+|---|---|---|
+| GET | `/` | anyone |
+| GET | `/api/products` (`?category=` `?search=`) | anyone |
+| GET | `/api/products/<id>` | anyone |
+| POST | `/api/products` | seller, admin |
+| PUT | `/api/products/<id>` | seller, admin |
+| DELETE | `/api/products/<id>` | seller, admin |
+| POST | `/api/register` | anyone -> 201\|400\|409 |
+| POST | `/api/login` | anyone -> 200\|400\|401 |
+
+## Roles (Step 2, built)
+- `@roles_required("seller","admin")` decorator; **401** = not logged in,
+  **403** = logged in but wrong role. Keep these distinct.
+- `get_current_user()` reads the `X-User-Id` header and loads the role from the
+  **database**, so editing the header cannot invent permissions. The frontend
+  sends the header automatically via `buildHeaders()` in `api.js`.
+- `read_product_payload(data, existing=None)` is the single validation function
+  for create AND update; supports partial updates.
+- **Tests: `test_auth.py` (24) + `test_products.py` (45) = 69 checks.** Run both
+  after any change to routes or permissions. Both clean up after themselves.
+- Seller UI is `src/components/ManageProducts.jsx` at route `/manage`; the nav
+  link only renders for sellers/admins.
+- Intentional limitation: products have no `seller_id`, so any seller can edit
+  any listing. Next step.
+
 
 ## Auth decisions (built)
 - Session-style, NOT JWT (user's choice). Passwords hashed with werkzeug
@@ -71,10 +98,11 @@ unless the user asks.
 
 ## Roadmap
 Done: Flask/SQLite setup, Product model + GET/POST, 30 products migrated,
-products page on the API, **authentication** (User table, register, login,
-hashed passwords, React form wired, session in localStorage).
+products page on the API, authentication (User table, register, login, hashed
+passwords, React form wired, session in localStorage), **role enforcement +
+full product CRUD (PUT/DELETE) + seller management page**.
 
-Pending: role enforcement, product CRUD (PUT/DELETE), per-user cart, orders,
+Pending: `seller_id` ownership on products, per-user cart, orders,
 reviews/ratings, AI recommendations, admin panel, frontend wiring, docs.
 
 Build one module at a time and test before moving on — the user is a beginner.
