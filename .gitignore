@@ -27,12 +27,28 @@ dist-ssr/
 *.bak-before-*
 
 # ---- Secrets ----
+# Ignore every .env file...
 .env
 .env.local
 .env.*.local
+**/.env
+
+# ...but keep the template. Anyone cloning the repo needs to know which
+# variables the project expects, and .env.example contains no real
+# values - only placeholders. Without the exception below, the bare
+# ".env" rule would also hide the template, because ".env.example"
+# starts with ".env".
+!.env.example
+!**/.env.example
 
 # ---- Editors / OS ----
+# ".vscode/*" ignores the folder's contents, and "!.vscode/settings.json"
+# re-includes the one file worth sharing: it tells VS Code to show the
+# git-ignored database and to use the backend virtual environment.
+# Without this exception the settings file is ignored and a fresh clone
+# loses both behaviours.
 .vscode/*
+!.vscode/settings.json
 !.vscode/extensions.json
 .idea/
 .DS_Store

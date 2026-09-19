@@ -1,0 +1,52 @@
+{
+  // SmartCart - VS Code workspace settings
+
+  // ---------------------------------------------------------------
+  // Show the database file in the sidebar
+  // ---------------------------------------------------------------
+  //
+  // backend/instance/smartcart.db is listed in .gitignore (it holds real
+  // password hashes), and VS Code hides git-ignored files by default. The
+  // file is still on disk - it just does not appear in the Explorer, which
+  // makes it look like the database is missing.
+  //
+  // Turning this off keeps git-ignored files visible but greyed out, so the
+  // .db file can be clicked and opened in the SQLite Viewer directly instead
+  // of having to reach it through Ctrl+P.
+  "explorer.excludeGitIgnore": false,
+
+  // ---------------------------------------------------------------
+  // Let the SQLite Viewer open .db files
+  // ---------------------------------------------------------------
+  //
+  // "workbench.editorAssociations" tells VS Code which editor to use for a
+  // file type. Without an entry here the .db file may open as binary text.
+  "workbench.editorAssociations": {
+    "*.db": "qwtel.sqlite-viewer"
+  },
+
+  // ---------------------------------------------------------------
+  // Python
+  // ---------------------------------------------------------------
+  //
+  // Point at the project's own virtual environment, not a global Python.
+  // The backend needs Flask 3.1.3 and scikit-learn, which only exist in
+  // backend/venv. Using a different interpreter gives confusing
+  // "ModuleNotFoundError: No module named 'flask'" errors.
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/venv/Scripts/python.exe",
+
+  // The venv and the built assets are noise in search results.
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true
+  },
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/backend/venv": true,
+    "**/__pycache__": true
+  },
+
+  "files.eol": "\n"
+}

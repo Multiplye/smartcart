@@ -127,8 +127,8 @@ function ProductList() {
           <strong>Could not load products.</strong>
 
           <p>
-            Make sure the Flask backend is running on
-            http://127.0.0.1:5000
+            Make sure the Flask backend is running, then reload
+            this page.
           </p>
 
           <small>{error}</small>

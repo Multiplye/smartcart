@@ -10,8 +10,25 @@
 //   .\venv\Scripts\Activate.ps1
 //   python app.py
 // Then it is available at http://127.0.0.1:5000
-
-const API_BASE_URL = "http://127.0.0.1:5000";
+//
+// ---------------------------------------------------------------
+// Where the backend lives
+// ---------------------------------------------------------------
+//
+// This used to be the hard-coded string "http://127.0.0.1:5000". That
+// works locally but breaks the moment the frontend is hosted anywhere,
+// because 127.0.0.1 means "the machine running the browser" - so a
+// visitor's browser would try to reach a Flask server on their own
+// laptop and fail.
+//
+// Vite replaces import.meta.env.VITE_API_URL at build time with
+// whatever VITE_API_URL is in the .env file (local) or in the
+// hosting provider's environment variables (deployed).
+//
+// The fallback keeps local development working with no .env file at
+// all, so a fresh clone still runs with `npm run dev`.
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
 // =========================
 // Who is making the request?
