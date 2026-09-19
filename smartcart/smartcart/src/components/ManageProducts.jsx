@@ -23,7 +23,7 @@ const EMPTY_FORM = {
 const CATEGORIES = ["Electronics", "Fashion", "Home"];
 
 function ManageProducts() {
-  const { isLoggedIn, isSeller, isAdmin } = useAuth();
+  const { user, isLoggedIn, isSeller, isAdmin } = useAuth();
 
   const canManage = isSeller || isAdmin;
 
@@ -42,6 +42,21 @@ function ManageProducts() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // An admin manages everything; a seller only manages their own listings.
+  const ownsThis = (product) => {
+    if (isAdmin) return true;
+    return product.seller_id === user?.id;
+  };
+
+  // A seller sees their own listings; an admin sees the whole catalogue.
+  const visibleProducts = isAdmin
+    ? products
+    : products.filter((product) => product.seller_id === user?.id);
+
+  const shopOwnedCount = products.filter(
+    (product) => product.seller_id === null
+  ).length;
 
   // =========================
   // LOAD PRODUCTS
@@ -109,6 +124,18 @@ function ManageProducts() {
 
   /** Load a product into the form for editing. */
   const startEditing = (product) => {
+    // The buttons are already disabled for products this user does not
+    // own, but the backend would refuse anyway - this is just a clear
+    // message instead of a confusing 403.
+    if (!ownsThis(product)) {
+      setError(
+        product.seller_id === null
+          ? "That product belongs to the shop, so only an admin can edit it."
+          : "That product belongs to a different seller."
+      );
+      return;
+    }
+
     setForm({
       name: product.name,
       description: product.description,
@@ -170,6 +197,16 @@ function ManageProducts() {
   // DELETE
   // =========================
   const handleDelete = async (product) => {
+    if (!ownsThis(product)) {
+      setSuccess(null);
+      setError(
+        product.seller_id === null
+          ? "That product belongs to the shop, so only an admin can delete it."
+          : "That product belongs to a different seller."
+      );
+      return;
+    }
+
     const sure = window.confirm(
       `Delete "${product.name}"? This cannot be undone.`
     );
@@ -381,8 +418,17 @@ function ManageProducts() {
 
         {/* ================= EXISTING PRODUCTS ================= */}
         <h2 className="manage-list-heading">
-          All products ({products.length})
+          {isAdmin
+            ? `All products (${products.length})`
+            : `Your products (${visibleProducts.length})`}
         </h2>
+
+        {isAdmin && shopOwnedCount > 0 && (
+          <p className="manage-note">
+            {shopOwnedCount} of these belong to the shop rather than to a
+            seller account. Only an admin can edit those.
+          </p>
+        )}
 
         {showLoading && <p className="products-status">Loading products...</p>}
 
@@ -393,9 +439,22 @@ function ManageProducts() {
           </div>
         )}
 
-        {!showLoading && !loadError && (
+        {!showLoading && !loadError && visibleProducts.length === 0 && (
+          <div className="products-status">
+            {isAdmin ? (
+              "There are no products in the shop yet."
+            ) : (
+              <>
+                <strong>You have not listed anything yet.</strong>
+                <p>Use the form above to add your first product.</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {!showLoading && !loadError && visibleProducts.length > 0 && (
           <div className="manage-list">
-            {products.map((product) => (
+            {visibleProducts.map((product) => (
               <div className="manage-row" key={product.id}>
                 <img
                   src={product.image}
@@ -409,6 +468,14 @@ function ManageProducts() {
                     {product.category} · Rs.{" "}
                     {product.price.toLocaleString()} · {product.stock} in stock
                   </small>
+
+                  {isAdmin && (
+                    <small className="manage-owner-tag">
+                      {product.seller_id === null
+                        ? "Owned by: the shop"
+                        : `Owned by: seller #${product.seller_id}`}
+                    </small>
+                  )}
                 </div>
 
                 <div className="manage-row-actions">
@@ -416,6 +483,7 @@ function ManageProducts() {
                     type="button"
                     className="manage-edit-btn"
                     onClick={() => startEditing(product)}
+                    disabled={!ownsThis(product)}
                   >
                     Edit
                   </button>
@@ -424,6 +492,7 @@ function ManageProducts() {
                     type="button"
                     className="manage-delete-btn"
                     onClick={() => handleDelete(product)}
+                    disabled={!ownsThis(product)}
                   >
                     Delete
                   </button>

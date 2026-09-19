@@ -26,10 +26,11 @@ from app import app, db, Product, User
 PASSWORD = "testpass123"
 
 SELLER_EMAIL = "test.seller@smartcart.local"
+SELLER2_EMAIL = "test.seller2@smartcart.local"
 BUYER_EMAIL = "test.buyer@smartcart.local"
 ADMIN_EMAIL = "test.admin@smartcart.local"
 
-TEST_EMAILS = [SELLER_EMAIL, BUYER_EMAIL, ADMIN_EMAIL]
+TEST_EMAILS = [SELLER_EMAIL, SELLER2_EMAIL, BUYER_EMAIL, ADMIN_EMAIL]
 
 # Name prefix used for products this script creates, so cleanup is safe
 TEST_PRODUCT_PREFIX = "[TEST] "
@@ -94,10 +95,13 @@ def main():
     print("\n0. SETUP - create test accounts")
 
     seller_id = make_account(client, "Test Seller", SELLER_EMAIL, "seller")
+    seller2_id = make_account(client, "Test Seller Two", SELLER2_EMAIL, "seller")
     buyer_id = make_account(client, "Test Buyer", BUYER_EMAIL, "buyer")
     admin_id = make_account(client, "Test Admin", ADMIN_EMAIL, "admin")
 
     check("seller account ready", bool(seller_id))
+    check("second seller account ready", bool(seller2_id))
+    check("second seller is a different account", seller2_id != seller_id)
     check("buyer account ready", bool(buyer_id))
     check("admin account ready", bool(admin_id))
 
@@ -180,6 +184,28 @@ def main():
           f"got {created.get('price')}")
     check("stock stored correctly", created.get("stock") == 7)
     check("category stored correctly", created.get("category") == "Electronics")
+
+    # The creator must be stamped as the owner automatically
+    check("seller_id was stamped from the logged-in user",
+          created.get("seller_id") == seller_id,
+          f"expected {seller_id}, got {created.get('seller_id')}")
+
+    # A seller must not be able to hand ownership to somebody else by
+    # sneaking seller_id into the request body.
+    r = client.post("/api/products", json={
+        "name": f"{TEST_PRODUCT_PREFIX}Spoofed Owner",
+        "description": "Trying to set someone else as the owner.",
+        "price": 10,
+        "category": "Home",
+        "seller_id": 999999,
+    }, headers=seller_headers)
+    check("seller_id in the request body is ignored -> 201",
+          r.status_code == 201, f"got {r.status_code}")
+    check("ownership still went to the caller",
+          r.get_json()["product"]["seller_id"] == seller_id,
+          f"got {r.get_json()['product']['seller_id']}")
+    spoofed_id = r.get_json()["product"]["id"]
+    client.delete(f"/api/products/{spoofed_id}", headers=seller_headers)
 
     # ---------------------------------------------------------------
     # 4. Validation
@@ -274,9 +300,82 @@ def main():
     check("deleting it twice -> 404", r.status_code == 404, f"got {r.status_code}")
 
     # ---------------------------------------------------------------
-    # 9. Admins can do everything
+    # 9. OWNERSHIP - seller A cannot touch seller B's product
     # ---------------------------------------------------------------
-    print("\n9. ADMIN - full access")
+    print("\n9. OWNERSHIP - sellers are fenced off from each other")
+
+    seller2_headers = headers_for(seller2_id)
+
+    # Seller 2 creates their own product
+    r = client.post("/api/products", json={
+        "name": f"{TEST_PRODUCT_PREFIX}Seller Two Lamp",
+        "description": "Belongs to the second seller.",
+        "price": 800,
+        "category": "Home",
+        "stock": 5,
+    }, headers=seller2_headers)
+    check("second seller can create their own product -> 201",
+          r.status_code == 201, f"got {r.status_code}")
+
+    seller2_product_id = r.get_json()["product"]["id"]
+
+    check("second seller's product is owned by them",
+          r.get_json()["product"]["seller_id"] == seller2_id)
+
+    # Seller 1 now tries to edit it -> must be refused
+    r = client.put(f"/api/products/{seller2_product_id}",
+                   json={"price": 1},
+                   headers=seller_headers)
+    check("seller A cannot update seller B's product -> 403",
+          r.status_code == 403, f"got {r.status_code}")
+
+    r = client.delete(f"/api/products/{seller2_product_id}", headers=seller_headers)
+    check("seller A cannot delete seller B's product -> 403",
+          r.status_code == 403, f"got {r.status_code}")
+
+    # ...and the product must still be intact after those attempts
+    r = client.get(f"/api/products/{seller2_product_id}")
+    check("the product survived the blocked attempts",
+          r.status_code == 200 and r.get_json()["price"] == 800,
+          f"got {r.status_code}")
+
+    # Seller 2 can still edit their own
+    r = client.put(f"/api/products/{seller2_product_id}",
+                   json={"price": 850}, headers=seller2_headers)
+    check("the owner can still update their own product -> 200",
+          r.status_code == 200, f"got {r.status_code}")
+
+    # Seller 1 also cannot touch the shop-owned (seller_id = NULL) products
+    r = client.put("/api/products/1", json={"price": 1}, headers=seller_headers)
+    check("seller cannot edit a shop-owned product -> 403",
+          r.status_code == 403, f"got {r.status_code}")
+    check("403 explains that it belongs to the shop",
+          "shop" in r.get_json().get("error", "").lower(),
+          f"got {r.get_json().get('error')!r}")
+
+    r = client.delete("/api/products/1", headers=seller_headers)
+    check("seller cannot delete a shop-owned product -> 403",
+          r.status_code == 403, f"got {r.status_code}")
+
+    # ...but product 1 must be completely unharmed
+    r = client.get("/api/products/1")
+    check("shop-owned product 1 is still there and unchanged",
+          r.status_code == 200, f"got {r.status_code}")
+
+    # A buyer cannot touch it either (role check fires first)
+    r = client.put("/api/products/1", json={"price": 1}, headers=buyer_headers)
+    check("buyer cannot edit a shop-owned product -> 403",
+          r.status_code == 403, f"got {r.status_code}")
+
+    # Clean up seller 2's product
+    r = client.delete(f"/api/products/{seller2_product_id}", headers=seller2_headers)
+    check("the owner can delete their own product -> 200",
+          r.status_code == 200, f"got {r.status_code}")
+
+    # ---------------------------------------------------------------
+    # 10. Admins can do everything
+    # ---------------------------------------------------------------
+    print("\n10. ADMIN - full access")
 
     admin_headers = headers_for(admin_id)
 
@@ -298,10 +397,45 @@ def main():
     r = client.delete(f"/api/products/{admin_product_id}", headers=admin_headers)
     check("admin can delete -> 200", r.status_code == 200, f"got {r.status_code}")
 
+    # The important one: an admin is NOT fenced off by ownership, and can
+    # edit the shop-owned products that sellers are refused on.
+    r = client.post("/api/products", json={
+        "name": f"{TEST_PRODUCT_PREFIX}Seller Two Target",
+        "description": "A seller's product that the admin will edit.",
+        "price": 300,
+        "category": "Fashion",
+        "stock": 4,
+    }, headers=seller2_headers)
+    target_id = r.get_json()["product"]["id"]
+
+    r = client.put(f"/api/products/{target_id}",
+                   json={"price": 333}, headers=admin_headers)
+    check("admin can update ANOTHER seller's product -> 200",
+          r.status_code == 200, f"got {r.status_code}")
+
+    r = client.delete(f"/api/products/{target_id}", headers=admin_headers)
+    check("admin can delete another seller's product -> 200",
+          r.status_code == 200, f"got {r.status_code}")
+
+    # And the shop-owned product sellers were blocked on
+    with app.app_context():
+        shop_owned = Product.query.filter(Product.seller_id.is_(None)).first()
+        shop_owned_id = shop_owned.id if shop_owned else None
+        shop_owned_price = shop_owned.price if shop_owned else None
+
+    if shop_owned_id is not None:
+        r = client.put(f"/api/products/{shop_owned_id}",
+                       json={"price": shop_owned_price}, headers=admin_headers)
+        check("admin can edit a shop-owned product -> 200",
+              r.status_code == 200, f"got {r.status_code}")
+    else:
+        check("a shop-owned product exists to test against", False,
+              "no product with seller_id = NULL found")
+
     # ---------------------------------------------------------------
-    # 10. The real products were never touched
+    # 11. The real products were never touched
     # ---------------------------------------------------------------
-    print("\n10. SAFETY - real products untouched")
+    print("\n11. SAFETY - real products untouched")
 
     with app.app_context():
         real_products_after = Product.query.filter(
@@ -332,9 +466,9 @@ def main():
           f"{still_there} remain")
 
     # ---------------------------------------------------------------
-    # 11. Clean up test accounts
+    # 12. Clean up test accounts
     # ---------------------------------------------------------------
-    print("\n11. Clean up test accounts")
+    print("\n12. Clean up test accounts")
 
     with app.app_context():
         removed = 0

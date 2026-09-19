@@ -1444,6 +1444,30 @@ img {
   font-size: 12.5px;
 }
 
+/* "Owned by: seller #3" - admins only */
+.manage-row-info .manage-owner-tag {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--accent-blue, #2563eb);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The "N of these belong to the shop" explanatory line */
+.manage-note {
+  max-width: 720px;
+
+  margin: 0 auto 18px;
+
+  color: var(--text-muted, #6b7280);
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .manage-row-actions {
   display: flex;
   gap: 8px;

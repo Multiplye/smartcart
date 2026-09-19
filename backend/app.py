@@ -35,6 +35,23 @@ class Product(db.Model):
     image = db.Column(db.String(500), nullable=True)
     stock = db.Column(db.Integer, default=0)
 
+    # WHO OWNS THIS LISTING.
+    #
+    # This is a "foreign key": the number stored here must match the id
+    # of a row in the user table. That is what lets us say "seller 7 owns
+    # this product" and then refuse to let seller 9 edit it.
+    #
+    # nullable=True is deliberate. The 30 products we imported from
+    # products.js have no owner - they were seeded by us, not by a
+    # seller. They behave like "shop-owned" stock that only an admin
+    # may edit. If we made this nullable=False we could not have added
+    # the column to a table that already had rows in it.
+    seller_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
 
 # =========================
 # User Model
@@ -89,7 +106,8 @@ def product_to_dict(product):
         "price": product.price,
         "category": product.category,
         "image": product.image,
-        "stock": product.stock
+        "stock": product.stock,
+        "seller_id": product.seller_id,
     }
 
 
@@ -186,6 +204,38 @@ def roles_required(*allowed_roles):
         return wrapper
 
     return decorator
+
+
+def can_manage_product(user, product):
+    """Decide whether this user is allowed to edit or delete this product.
+
+    The rule, in plain English:
+
+        - An admin can manage ANY product, including the 30 seeded ones.
+        - A seller can manage only the products THEY created.
+        - Products with seller_id = None (the seeded ones) belong to the
+          shop, so only an admin can touch them.
+        - A buyer can never manage anything.
+
+    Returns (allowed, error_message, status_code).
+    """
+
+    if user.role == "admin":
+        return True, None, None
+
+    if product.seller_id is None:
+        return False, (
+            "This product belongs to the shop, not to a seller account. "
+            "Only an admin can change it."
+        ), 403
+
+    if product.seller_id != user.id:
+        return False, (
+            "This product belongs to a different seller, so you cannot "
+            "change it."
+        ), 403
+
+    return True, None, None
 
 
 # =========================
@@ -316,6 +366,11 @@ def create_product():
 
     product = Product(**values)
 
+    # Stamp the product with the person who created it. We take the id
+    # from the logged-in user rather than from the request body, so a
+    # seller cannot create a listing owned by somebody else.
+    product.seller_id = request.current_user.id
+
     db.session.add(product)
     db.session.commit()
 
@@ -341,6 +396,14 @@ def update_product(product_id):
 
     if product is None:
         return {"error": "Product not found."}, 404
+
+    # Ownership check comes BEFORE we read the body, so a seller who does
+    # not own this product learns nothing about what a valid edit looks
+    # like.
+    allowed, error, status = can_manage_product(request.current_user, product)
+
+    if not allowed:
+        return {"error": error}, status
 
     data = request.get_json(silent=True)
 
@@ -376,6 +439,11 @@ def delete_product(product_id):
 
     if product is None:
         return {"error": "Product not found."}, 404
+
+    allowed, error, status = can_manage_product(request.current_user, product)
+
+    if not allowed:
+        return {"error": error}, status
 
     name = product.name
 
