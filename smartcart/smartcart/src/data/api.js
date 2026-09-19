@@ -144,6 +144,48 @@ export async function deleteProduct(productId) {
 }
 
 // =========================
+// Cart
+// =========================
+//
+// The cart lives on the server, tied to the logged-in user. Every one
+// of these returns the same shape:
+//
+//   { message?, items: [...], count: 3, total: 5000 }
+//
+// so the caller can just drop the new values straight into state.
+
+/** Fetch the logged-in user's cart. */
+export async function getCart() {
+  return requestJson("/api/cart");
+}
+
+/** Add a product to the cart (or bump its quantity). */
+export async function addCartItem(productId, quantity = 1) {
+  return requestJson("/api/cart", {
+    method: "POST",
+    body: { product_id: productId, quantity },
+  });
+}
+
+/** Set an item's quantity. Passing 0 removes it. */
+export async function setCartItemQuantity(productId, quantity) {
+  return requestJson(`/api/cart/${productId}`, {
+    method: "PUT",
+    body: { quantity },
+  });
+}
+
+/** Remove one product from the cart. */
+export async function removeCartItem(productId) {
+  return requestJson(`/api/cart/${productId}`, { method: "DELETE" });
+}
+
+/** Empty the whole cart. */
+export async function clearCart() {
+  return requestJson("/api/cart", { method: "DELETE" });
+}
+
+// =========================
 // Accounts
 // =========================
 

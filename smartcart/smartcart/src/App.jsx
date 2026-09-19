@@ -1,4 +1,3 @@
-import { useState } from "react";
 import "./App.css";
 
 import ProductList from "./components/ProductList";
@@ -7,19 +6,30 @@ import Products from "./components/Products";
 import ManageProducts from "./components/ManageProducts";
 
 import { useAuth } from "./context/useAuth";
+import { useCart } from "./context/useCart";
 
 import { Routes, Route, Link } from "react-router-dom";
 
-function Home({
-  cart,
-  addToCart,
-  increaseQuantity,
-  decreaseQuantity,
-  removeFromCart,
-  cartCount,
-  cartTotal,
-}) {
+function Home() {
   const { user, isLoggedIn, isSeller, isAdmin } = useAuth();
+
+  // The cart now comes from context, so it is shared by every page and
+  // survives a refresh. No props to thread through any more.
+  const {
+    items: cart,
+    cartCount,
+    cartTotal,
+    loading: cartLoading,
+    error: cartError,
+    setQuantity,
+    removeItem,
+  } = useCart();
+
+  const increaseQuantity = (productId) =>
+    setQuantity(productId, (cart.find((i) => i.product_id === productId)?.quantity ?? 0) + 1);
+
+  const decreaseQuantity = (productId) =>
+    setQuantity(productId, Math.max(0, (cart.find((i) => i.product_id === productId)?.quantity ?? 1) - 1));
 
   return (
     <div className="app">
@@ -113,7 +123,7 @@ function Home({
       </section>
 
       {/* ================= PRODUCTS ================= */}
-      <ProductList addToCart={addToCart} />
+      <ProductList />
 
       {/* ================= CATEGORIES ================= */}
       <section
@@ -249,7 +259,18 @@ function Home({
           </h2>
         </div>
 
-        {cart.length === 0 ? (
+        {cartLoading && (
+          <p className="products-status">Loading your cart...</p>
+        )}
+
+        {cartError && (
+          <div className="products-status products-error">
+            <strong>Could not load your cart.</strong>
+            <p>{cartError}</p>
+          </div>
+        )}
+
+        {!cartLoading && cart.length === 0 ? (
           <div className="empty-cart">
             <div className="empty-cart-icon">
               00
@@ -260,7 +281,9 @@ function Home({
             </h3>
 
             <p>
-              Add products to your cart to get started.
+              {isLoggedIn
+                ? "Add products to your cart to get started."
+                : "Log in and your cart will be saved to your account."}
             </p>
 
             <Link to="/products">
@@ -270,13 +293,14 @@ function Home({
             </Link>
           </div>
         ) : (
+          !cartLoading && (
           <div className="cart-container">
 
             <div className="cart-items">
               {cart.map((item) => (
                 <div
                   className="cart-item"
-                  key={item.id}
+                  key={item.product_id}
                 >
                   <img
                     src={item.image}
@@ -300,7 +324,7 @@ function Home({
                   <div className="quantity-controls">
                     <button
                       onClick={() =>
-                        decreaseQuantity(item.id)
+                        decreaseQuantity(item.product_id)
                       }
                     >
                       −
@@ -312,7 +336,7 @@ function Home({
 
                     <button
                       onClick={() =>
-                        increaseQuantity(item.id)
+                        increaseQuantity(item.product_id)
                       }
                     >
                       +
@@ -322,15 +346,13 @@ function Home({
                   <div className="item-total">
                     <strong>
                       Rs.{" "}
-                      {(
-                        item.price * item.quantity
-                      ).toLocaleString()}
+                      {(item.price * item.quantity).toLocaleString()}
                     </strong>
 
                     <button
                       className="remove-btn"
                       onClick={() =>
-                        removeFromCart(item.id)
+                        removeItem(item.product_id)
                       }
                     >
                       Remove
@@ -371,6 +393,7 @@ function Home({
             </div>
 
           </div>
+          )
         )}
       </section>
 
@@ -533,120 +556,21 @@ function Home({
 
 
 function App() {
-  const [cart, setCart] = useState([]);
-
-  /* =========================
-     CART FUNCTIONS
-  ========================= */
-
-  const addToCart = (product) => {
-    setCart((currentCart) => {
-      const existingProduct = currentCart.find(
-        (item) => item.id === product.id
-      );
-
-      if (existingProduct) {
-        return currentCart.map((item) =>
-          item.id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-              }
-            : item
-        );
-      }
-
-      return [
-        ...currentCart,
-        {
-          ...product,
-          quantity: 1,
-        },
-      ];
-    });
-  };
-
-  const increaseQuantity = (id) => {
-    setCart((currentCart) =>
-      currentCart.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-            }
-          : item
-      )
-    );
-  };
-
-  const decreaseQuantity = (id) => {
-    setCart((currentCart) =>
-      currentCart
-        .map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                quantity: item.quantity - 1,
-              }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const removeFromCart = (id) => {
-    setCart((currentCart) =>
-      currentCart.filter(
-        (item) => item.id !== id
-      )
-    );
-  };
-
-  const cartCount = cart.reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
-
-  const cartTotal = cart.reduce(
-    (total, item) =>
-      total + item.price * item.quantity,
-    0
-  );
+  // The cart lives in CartProvider now (see src/context/CartProvider.jsx),
+  // so this component no longer needs to hold any cart state.
+  // ProductList and Products reach the cart themselves via useCart().
 
   return (
     <Routes>
 
       {/* HOME PAGE */}
-      <Route
-        path="/"
-        element={
-          <Home
-            cart={cart}
-            addToCart={addToCart}
-            increaseQuantity={increaseQuantity}
-            decreaseQuantity={decreaseQuantity}
-            removeFromCart={removeFromCart}
-            cartCount={cartCount}
-            cartTotal={cartTotal}
-          />
-        }
-      />
+      <Route path="/" element={<Home />} />
 
       {/* ALL PRODUCTS PAGE */}
-      <Route
-        path="/products"
-        element={
-          <Products
-            addToCart={addToCart}
-          />
-        }
-      />
+      <Route path="/products" element={<Products />} />
 
       {/* SELLER / ADMIN PRODUCT MANAGEMENT */}
-      <Route
-        path="/manage"
-        element={<ManageProducts />}
-      />
+      <Route path="/manage" element={<ManageProducts />} />
 
     </Routes>
   );

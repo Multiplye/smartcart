@@ -1,11 +1,33 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getProducts } from "../data/api";
+import { useCart } from "../context/useCart";
 
-function Products({ addToCart }) {
+function Products() {
   const [searchParams] = useSearchParams();
 
   const category = searchParams.get("category");
+
+  // Reach the shared cart directly rather than taking a prop
+  const { addItem } = useCart();
+
+  const [justAdded, setJustAdded] = useState(null);
+  const [addError, setAddError] = useState(null);
+
+  const handleAdd = async (product) => {
+    setAddError(null);
+
+    try {
+      await addItem(product);
+      setJustAdded(product.id);
+
+      window.setTimeout(() => {
+        setJustAdded((current) => (current === product.id ? null : current));
+      }, 1500);
+    } catch (err) {
+      setAddError(err.message);
+    }
+  };
 
   // =========================
   // LOAD PRODUCTS FROM BACKEND
@@ -101,6 +123,13 @@ function Products({ addToCart }) {
           </div>
         )}
 
+        {addError && (
+          <div className="products-status products-error">
+            <strong>Could not add that to your cart.</strong>
+            <p>{addError}</p>
+          </div>
+        )}
+
         {!loading && !error && filteredProducts.length === 0 && (
           <p className="products-status">
             No products found in this category.
@@ -136,11 +165,14 @@ function Products({ addToCart }) {
 
                 <button
                   className="add-cart-btn"
-                  onClick={() =>
-                    addToCart(product)
-                  }
+                  onClick={() => handleAdd(product)}
+                  disabled={product.stock < 1}
                 >
-                  Add to Cart
+                  {product.stock < 1
+                    ? "Out of Stock"
+                    : justAdded === product.id
+                      ? "Added"
+                      : "Add to Cart"}
                 </button>
               </div>
             </div>

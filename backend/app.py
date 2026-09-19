@@ -84,6 +84,45 @@ class User(db.Model):
 
 
 # =========================
+# CartItem Model
+# =========================
+#
+# One row = "this user wants N of this product".
+#
+# Note what is NOT stored here: the price. Only the product id and the
+# quantity. That is deliberate, because a product's price can change.
+# If we copied the price into the cart, a shopper could add an item at
+# Rs. 100, wait for the seller to raise it to Rs. 200, and then check
+# out at the old price. By storing just the id, the price is always
+# looked up fresh from the product table.
+
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False
+    )
+
+    product_id = db.Column(
+        db.Integer,
+        db.ForeignKey("product.id"),
+        nullable=False
+    )
+
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+
+    # A user should never end up with two separate rows for the same
+    # product. This constraint makes the database itself refuse that,
+    # not just our application code.
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "product_id", name="one_row_per_user_product"),
+    )
+
+
+
+# =========================
 # Home Route
 # =========================
 
@@ -454,6 +493,231 @@ def delete_product(product_id):
         "message": f"'{name}' was deleted.",
         "deleted_id": product_id
     }, 200
+
+
+# =========================
+# CART (logged-in users)
+# =========================
+#
+# The cart lives in the database, keyed by the logged-in user. That is
+# what makes it survive a page refresh, a browser restart, or switching
+# to a different device.
+#
+# Every route below is scoped to request.current_user, so there is no
+# way to read or change somebody else's cart.
+
+def cart_item_to_dict(item):
+    """Turn a CartItem into JSON, joining in the product details.
+
+    The frontend needs the name, price and image to draw the cart, and
+    those live on the product - so we look it up here rather than making
+    the browser fire one request per item.
+    """
+    product = db.session.get(Product, item.product_id)
+
+    # Defensive: if a product was deleted while it sat in someone's
+    # cart, skip it rather than crashing.
+    if product is None:
+        return None
+
+    return {
+        "product_id": product.id,
+        "quantity": item.quantity,
+        "name": product.name,
+        "price": product.price,
+        "image": product.image,
+        "category": product.category,
+        "stock": product.stock,
+        "subtotal": round(product.price * item.quantity, 2),
+    }
+
+
+def read_cart():
+    """Return the current user's cart as a list of dictionaries."""
+    items = CartItem.query.filter_by(user_id=request.current_user.id).all()
+
+    result = []
+
+    for item in items:
+        as_dict = cart_item_to_dict(item)
+
+        if as_dict is not None:
+            result.append(as_dict)
+
+    return result
+
+
+def cart_response(message=None, status=200):
+    """Build a consistent cart reply for every cart route.
+
+    Every route returns the same three things - a message plus the full
+    recalculated cart - so the frontend can simply replace its state
+    with whatever came back, instead of guessing what changed.
+    """
+    items = read_cart()
+
+    body = {
+        "items": items,
+        "count": sum(item["quantity"] for item in items),
+        "total": round(sum(item["subtotal"] for item in items), 2),
+    }
+
+    if message:
+        body["message"] = message
+
+    return body, status
+
+
+@app.route("/api/cart", methods=["GET"])
+@roles_required("buyer", "seller", "admin")
+def get_cart():
+    """Return the logged-in user's cart."""
+
+    return cart_response()
+
+
+@app.route("/api/cart", methods=["POST"])
+@roles_required("buyer", "seller", "admin")
+def add_to_cart():
+    """Add a product to the cart, or increase its quantity.
+
+    Body: { "product_id": 3, "quantity": 1 }
+    """
+
+    data = request.get_json(silent=True) or {}
+
+    # --- 1. Which product? ---
+    try:
+        product_id = int(data.get("product_id"))
+    except (TypeError, ValueError):
+        return {"error": "A valid product_id is required."}, 400
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    # --- 2. How many? Defaults to 1 if not sent. ---
+    try:
+        quantity = int(data.get("quantity", 1))
+    except (TypeError, ValueError):
+        return {"error": "Quantity must be a whole number."}, 400
+
+    if quantity < 1:
+        return {"error": "Quantity must be at least 1."}, 400
+
+    # --- 3. Already in the cart? Add to it instead of adding a row. ---
+    existing = CartItem.query.filter_by(
+        user_id=request.current_user.id,
+        product_id=product_id
+    ).first()
+
+    if existing:
+        existing.quantity += quantity
+
+        # Never let the cart ask for more than the shop has
+        if existing.quantity > product.stock:
+            existing.quantity = product.stock
+
+        message = f"'{product.name}' quantity updated."
+    else:
+        # A product with 0 stock cannot be added at all
+        if product.stock < 1:
+            return {"error": f"'{product.name}' is out of stock."}, 400
+
+        existing = CartItem(
+            user_id=request.current_user.id,
+            product_id=product_id,
+            quantity=min(quantity, product.stock)
+        )
+
+        db.session.add(existing)
+        message = f"'{product.name}' added to your cart."
+
+    db.session.commit()
+
+    return cart_response(message, 201)
+
+
+@app.route("/api/cart/<int:product_id>", methods=["PUT"])
+@roles_required("buyer", "seller", "admin")
+def update_cart_item(product_id):
+    """Set the quantity of one cart item.
+
+    Body: { "quantity": 4 }
+    A quantity of 0 removes the item.
+    """
+
+    data = request.get_json(silent=True) or {}
+
+    item = CartItem.query.filter_by(
+        user_id=request.current_user.id,
+        product_id=product_id
+    ).first()
+
+    if item is None:
+        return {"error": "That product is not in your cart."}, 404
+
+    try:
+        quantity = int(data.get("quantity"))
+    except (TypeError, ValueError):
+        return {"error": "Quantity must be a whole number."}, 400
+
+    if quantity < 0:
+        return {"error": "Quantity cannot be negative."}, 400
+
+    # --- Removing an item ---
+    if quantity == 0:
+        db.session.delete(item)
+        db.session.commit()
+
+        return cart_response("Item removed from your cart.")
+
+    # --- Cap at available stock ---
+    product = db.session.get(Product, product_id)
+    message = "Cart updated."
+
+    if product is not None and quantity > product.stock:
+        quantity = product.stock
+        message = (
+            f"Only {quantity} left in stock, so your quantity was set to {quantity}."
+        )
+
+    item.quantity = quantity
+
+    db.session.commit()
+
+    return cart_response(message)
+
+
+@app.route("/api/cart/<int:product_id>", methods=["DELETE"])
+@roles_required("buyer", "seller", "admin")
+def remove_cart_item(product_id):
+    """Remove one product from the cart."""
+
+    item = CartItem.query.filter_by(
+        user_id=request.current_user.id,
+        product_id=product_id
+    ).first()
+
+    if item is None:
+        return {"error": "That product is not in your cart."}, 404
+
+    db.session.delete(item)
+    db.session.commit()
+
+    return cart_response("Item removed from your cart.")
+
+
+@app.route("/api/cart", methods=["DELETE"])
+@roles_required("buyer", "seller", "admin")
+def clear_cart():
+    """Empty the cart completely."""
+
+    CartItem.query.filter_by(user_id=request.current_user.id).delete()
+    db.session.commit()
+
+    return cart_response("Your cart is now empty.")
 
 
 # =========================

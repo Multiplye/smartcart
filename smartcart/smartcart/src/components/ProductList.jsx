@@ -1,7 +1,34 @@
 import { useEffect, useState } from "react";
 import { getProducts } from "../data/api";
+import { useCart } from "../context/useCart";
 
-function ProductList({ addToCart }) {
+function ProductList() {
+  // The cart is shared app-wide, so this component reaches it directly
+  // instead of being handed a prop from App.
+  const { addItem } = useCart();
+
+  // Tracks which "Add to Cart" was clicked last, so we can show a short
+  // confirmation on that one card instead of a message at the top of
+  // the page that is easy to miss.
+  const [justAdded, setJustAdded] = useState(null);
+  const [addError, setAddError] = useState(null);
+
+  const handleAdd = async (product) => {
+    setAddError(null);
+
+    try {
+      await addItem(product);
+      setJustAdded(product.id);
+
+      // Put the button back to normal after a moment
+      window.setTimeout(() => {
+        setJustAdded((current) => (current === product.id ? null : current));
+      }, 1500);
+    } catch (err) {
+      setAddError(err.message);
+    }
+  };
+
   // =========================
   // LOAD PRODUCTS FROM BACKEND
   // =========================
@@ -74,6 +101,13 @@ function ProductList({ addToCart }) {
         </div>
       )}
 
+      {addError && (
+        <div className="products-status products-error">
+          <strong>Could not add that to your cart.</strong>
+          <p>{addError}</p>
+        </div>
+      )}
+
       {!loading && !error && (
         <div className="product-grid">
         {featuredProducts.map((product) => (
@@ -96,9 +130,14 @@ function ProductList({ addToCart }) {
 
               <button
                 className="add-cart-btn"
-                onClick={() => addToCart(product)}
+                onClick={() => handleAdd(product)}
+                disabled={product.stock < 1}
               >
-                Add to Cart
+                {product.stock < 1
+                  ? "Out of Stock"
+                  : justAdded === product.id
+                    ? "Added"
+                    : "Add to Cart"}
               </button>
             </div>
           </div>

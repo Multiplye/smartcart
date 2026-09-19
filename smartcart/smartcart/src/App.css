@@ -550,6 +550,15 @@ img {
   transform: translateY(-2px);
 }
 
+/* Out of stock, or the click is still being saved */
+.add-cart-btn:disabled,
+.add-cart-btn:disabled:hover {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 1;
+}
+
 
 /* =====================================================
    CATEGORY SECTION
