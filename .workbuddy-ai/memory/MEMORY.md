@@ -29,6 +29,16 @@ unless the user asks.
 - Flask `debug=True` spawns a reloader CHILD process that does the real serving,
   so killing the netstat PID may leave the port answering. Test with
   `socket.bind()`, not netstat.
+- Editing `backend/app.py` restarts Flask (it watches files). Any background
+  shell running the server will report as failed — just restart it.
+
+## Version control (set up 2026-09-19)
+- The project had NO git repo. Initialized one; first commit `e72b424`, 38 files.
+- `.gitignore` excludes `venv/`, `node_modules/`, `dist/`, `__pycache__/`, and
+  **`backend/instance/*.db`** (holds real user data + password hashes — must
+  never be committed). Each dev re-seeds locally via `import_products.py`.
+- `GIT-BASICS.md` explains status/diff/commit/undo for the user.
+- Not yet pushed to a remote; recommend GitHub before submission.
 ## Conventions
 - All backend calls go through `src/data/api.js`; components never hardcode the
   URL. Its `postJson()` helper converts the backend's `{error}` responses into
