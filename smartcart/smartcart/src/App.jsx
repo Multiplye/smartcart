@@ -9,6 +9,9 @@ import Orders from "./components/Orders";
 import ProductDetail from "./components/ProductDetail";
 import Recommendations from "./components/Recommendations";
 import Admin from "./components/Admin";
+import Navbar from "./components/Navbar";
+import PageLayout from "./components/PageLayout";
+import ScrollManager from "./components/ScrollManager";
 
 import { useAuth } from "./context/useAuth";
 import { useCart } from "./context/useCart";
@@ -16,8 +19,6 @@ import { useCart } from "./context/useCart";
 import { Routes, Route, Link } from "react-router-dom";
 
 function Home() {
-  const { user, isLoggedIn, isSeller, isAdmin } = useAuth();
-
   // The cart now comes from context, so it is shared by every page and
   // survives a refresh. No props to thread through any more.
   const {
@@ -30,6 +31,8 @@ function Home() {
     removeItem,
   } = useCart();
 
+  const { isLoggedIn } = useAuth();
+
   const increaseQuantity = (productId) =>
     setQuantity(productId, (cart.find((i) => i.product_id === productId)?.quantity ?? 0) + 1);
 
@@ -39,31 +42,8 @@ function Home() {
   return (
     <div className="app">
       {/* ================= NAVBAR ================= */}
-      <header className="navbar">
-        <Link to="/" className="logo">
-          Smart<span>Cart</span>
-        </Link>
+      <Navbar />
 
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/products">Products</Link>
-          <Link to="/recommendations">For You</Link>
-          {isLoggedIn && <Link to="/orders">Orders</Link>}
-          {(isSeller || isAdmin) && (
-            <Link to="/manage">Manage</Link>
-          )}
-          {isAdmin && <Link to="/admin">Admin</Link>}
-          <a href="#categories">Categories</a>
-          <a href="#about">About</a>
-          <a href="#auth">
-            {isLoggedIn ? `Hi, ${user.name.split(" ")[0]}` : "Login"}
-          </a>
-        </nav>
-
-        <Link to="/checkout" className="cart-btn">
-          Cart ({cartCount})
-        </Link>
-      </header>
 
       {/* ================= HERO ================= */}
       <section className="hero" id="home">
@@ -581,34 +561,50 @@ function App() {
      It would be cleaner still to pull this into its own component -
      that is a good refactor for later, once the pages settle down.
   ========================= */
+  /* =========================
+     ROUTES
+     =========================
+     Home renders its own navbar (the hero sits directly under it).
+     Every other page is wrapped in PageLayout, which supplies the
+     navbar. Wrapping at the route level means a new page cannot
+     forget to include it.
+  ========================= */
+  const wrap = (page) => <PageLayout>{page}</PageLayout>;
+
   return (
-    <Routes>
+    <>
+      {/* Runs on every navigation. Not visible - it just fixes
+          scrolling, which React Router leaves to you. */}
+      <ScrollManager />
 
-      {/* HOME PAGE */}
-      <Route path="/" element={<Home />} />
+      <Routes>
 
-      {/* ALL PRODUCTS PAGE */}
-      <Route path="/products" element={<Products />} />
+        {/* HOME PAGE - renders its own Navbar */}
+        <Route path="/" element={<Home />} />
 
-      {/* ONE PRODUCT - with its reviews and related products */}
-      <Route path="/product/:productId" element={<ProductDetail />} />
+        {/* ALL PRODUCTS PAGE */}
+        <Route path="/products" element={wrap(<Products />)} />
 
-      {/* AI RECOMMENDATIONS - personalised, or popular for a visitor */}
-      <Route path="/recommendations" element={<Recommendations />} />
+        {/* ONE PRODUCT - with its reviews and related products */}
+        <Route path="/product/:productId" element={wrap(<ProductDetail />)} />
 
-      {/* CHECKOUT - cart to order */}
-      <Route path="/checkout" element={<Checkout />} />
+        {/* AI RECOMMENDATIONS - personalised, or popular for a visitor */}
+        <Route path="/recommendations" element={wrap(<Recommendations />)} />
 
-      {/* ORDER HISTORY - all three roles, different views */}
-      <Route path="/orders" element={<Orders />} />
+        {/* CHECKOUT - cart to order */}
+        <Route path="/checkout" element={wrap(<Checkout />)} />
 
-      {/* SELLER / ADMIN PRODUCT MANAGEMENT */}
-      <Route path="/manage" element={<ManageProducts />} />
+        {/* ORDER HISTORY - all three roles, different views */}
+        <Route path="/orders" element={wrap(<Orders />)} />
 
-      {/* ADMIN PANEL - the backend rejects anyone who is not an admin */}
-      <Route path="/admin" element={<Admin />} />
+        {/* SELLER / ADMIN PRODUCT MANAGEMENT */}
+        <Route path="/manage" element={wrap(<ManageProducts />)} />
 
-    </Routes>
+        {/* ADMIN PANEL - the backend rejects anyone who is not an admin */}
+        <Route path="/admin" element={wrap(<Admin />)} />
+
+      </Routes>
+    </>
   );
 }
 
