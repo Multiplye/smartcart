@@ -6,6 +6,7 @@ import { useCart } from "../context/useCart";
 
 import {
   getProduct,
+  getProductRecommendations,
   getProductReviews,
   createReview,
   updateReview,
@@ -13,6 +14,7 @@ import {
 } from "../data/api";
 
 import Stars from "./Stars";
+import RecommendationStrip from "./RecommendationStrip";
 
 function ProductDetail() {
   const { productId } = useParams();
@@ -28,6 +30,9 @@ function ProductDetail() {
   // The reviews
   const [reviews, setReviews] = useState([]);
   const [summary, setSummary] = useState({ average: 0, count: 0 });
+
+  // "You might also like" - filled in by the second effect below
+  const [suggestions, setSuggestions] = useState([]);
 
   // The review form
   const [rating, setRating] = useState(0);
@@ -65,6 +70,35 @@ function ProductDetail() {
         if (!cancelled) setError(err.message);
       } finally {
         if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  // =========================
+  // LOAD "YOU MIGHT ALSO LIKE"
+  // =========================
+  //
+  // Separate from the product fetch above on purpose. If the
+  // recommender is ever slow or fails, the product page must still
+  // work - the suggestions are a bonus, not a requirement. So this
+  // effect swallows its own errors and just leaves the list empty.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await getProductRecommendations(productId, 4);
+
+        // The endpoint always answers, but the recommender list can be
+        // empty (a one-product catalogue has nothing to compare with),
+        // so guard rather than assume.
+        if (!cancelled) setSuggestions(data.recommendations || []);
+      } catch {
+        if (!cancelled) setSuggestions([]);
       }
     })();
 
@@ -450,6 +484,21 @@ function ProductDetail() {
               ))}
           </div>
         </div>
+
+        {/* ==========================================
+            AI RECOMMENDATIONS
+            ==========================================
+            The backend scores every other product against this one
+            using TF-IDF vectors and cosine similarity. We re-render by
+            key so React throws the strip away and rebuilds it when you
+            move from one product page to another. */}
+        <RecommendationStrip
+          key={productId}
+          products={suggestions}
+          variant="similar"
+          title="You might also like"
+          subtitle="Chosen by comparing this product's description with the rest of the catalogue."
+        />
       </section>
     </main>
   );

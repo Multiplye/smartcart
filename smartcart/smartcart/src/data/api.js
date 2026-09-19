@@ -144,6 +144,55 @@ export async function deleteProduct(productId) {
 }
 
 // =========================
+// Recommendations (the AI)
+// =========================
+//
+// Two flavours, and the difference matters:
+//
+//   getProductRecommendations(id)  - "people looking at this also like..."
+//                                    Pure text similarity. Works for
+//                                    visitors who are not logged in.
+//                                    Answer: { product_id, based_on:
+//                                    "product similarity", fallback,
+//                                    recommendations: [...] }
+//
+//   getRecommendations()           - personalised. Reads your order
+//                                    history and builds a taste profile
+//                                    from it. Falls back to the most
+//                                    popular products if you are new.
+//                                    Answer: { based_on, reason,
+//                                    personalised, based_on_products?,
+//                                    recommendations: [...] }
+//
+// Each item carries match_score (0..1), match_percent (an integer,
+// friendlier to show a person) and text_similarity (the raw cosine
+// score before ratings are blended in).
+
+/** "You might also like" for one product. Public - no login needed. */
+export async function getProductRecommendations(productId, limit) {
+  const params = new URLSearchParams();
+
+  if (limit) params.set("limit", limit);
+
+  const query = params.toString();
+  const path = `/api/products/${productId}/recommendations`;
+
+  return requestJson(query ? `${path}?${query}` : path);
+}
+
+/** Personalised picks for the logged-in user, or popular ones for a guest. */
+export async function getRecommendations(limit) {
+  const params = new URLSearchParams();
+
+  if (limit) params.set("limit", limit);
+
+  const query = params.toString();
+  const path = "/api/recommendations";
+
+  return requestJson(query ? `${path}?${query}` : path);
+}
+
+// =========================
 // Cart
 // =========================
 //

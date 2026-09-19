@@ -7,6 +7,7 @@ import ManageProducts from "./components/ManageProducts";
 import Checkout from "./components/Checkout";
 import Orders from "./components/Orders";
 import ProductDetail from "./components/ProductDetail";
+import Recommendations from "./components/Recommendations";
 
 import { useAuth } from "./context/useAuth";
 import { useCart } from "./context/useCart";
@@ -45,6 +46,7 @@ function Home() {
         <nav>
           <Link to="/">Home</Link>
           <Link to="/products">Products</Link>
+          <Link to="/recommendations">For You</Link>
           {isLoggedIn && <Link to="/orders">Orders</Link>}
           {(isSeller || isAdmin) && (
             <Link to="/manage">Manage</Link>
@@ -233,9 +235,11 @@ function Home() {
             interests and shopping needs.
           </p>
 
-          <button className="ai-btn">
-            Try AI Recommendations →
-          </button>
+          <Link to="/recommendations">
+            <button className="ai-btn">
+              Try AI Recommendations →
+            </button>
+          </Link>
         </div>
 
         <div className="ai-visual">
@@ -584,8 +588,11 @@ function App() {
       {/* ALL PRODUCTS PAGE */}
       <Route path="/products" element={<Products />} />
 
-      {/* ONE PRODUCT - with its reviews */}
+      {/* ONE PRODUCT - with its reviews and related products */}
       <Route path="/product/:productId" element={<ProductDetail />} />
+
+      {/* AI RECOMMENDATIONS - personalised, or popular for a visitor */}
+      <Route path="/recommendations" element={<Recommendations />} />
 
       {/* CHECKOUT - cart to order */}
       <Route path="/checkout" element={<Checkout />} />

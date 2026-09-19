@@ -2873,3 +2873,261 @@ button,
     gap: 24px;
   }
 }
+
+
+/* =====================================================
+   RECOMMENDATIONS - "You might also like" strip
+   and the personalised recommendations page
+===================================================== */
+
+.rec-strip {
+  margin-top: 56px;
+  padding-top: 40px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.rec-strip-head {
+  margin-bottom: 24px;
+}
+
+.rec-strip-head h3 {
+  margin: 8px 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.rec-strip-subtitle {
+  margin: 10px 0 0;
+  max-width: 620px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  opacity: 0.65;
+}
+
+.rec-strip-error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(198, 40, 40, 0.08);
+  color: #c62828;
+  font-size: 0.9rem;
+}
+
+/* A four-across row that folds down gracefully. auto-fit + minmax
+   means we do not have to write a media query just to keep the cards
+   a sensible size. */
+.rec-strip-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px;
+}
+
+.rec-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.rec-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.09);
+}
+
+.rec-card-image-link {
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.rec-card-image-link img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.rec-card:hover .rec-card-image-link img {
+  transform: scale(1.05);
+}
+
+.rec-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 16px;
+  flex: 1;
+}
+
+.rec-card-body small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.rec-card-name {
+  font-size: 0.98rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rec-card-name:hover {
+  text-decoration: underline;
+}
+
+.rec-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  min-height: 20px;
+}
+
+.rec-card-no-rating {
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+
+/* Pushes the price + button to the bottom so every card in a row
+   lines up, even when the product names differ in length. */
+.rec-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.rec-card-foot strong {
+  font-size: 0.95rem;
+}
+
+.rec-add-btn {
+  padding: 7px 16px;
+  font-size: 0.82rem;
+}
+
+/* ---------- Recommendations page ---------- */
+
+.rec-basis {
+  margin-bottom: 8px;
+}
+
+.rec-basis h3 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.rec-basis-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rec-basis-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 999px;
+  background: #ffffff;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: border-color 0.2s ease;
+}
+
+.rec-basis-chip:hover {
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+.rec-basis-chip img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.rec-how {
+  margin-top: 56px;
+  padding: 28px 30px;
+  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.rec-how h3 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.rec-how p {
+  margin: 0 0 12px;
+  max-width: 760px;
+  font-size: 0.94rem;
+  line-height: 1.75;
+  opacity: 0.8;
+}
+
+.rec-how p:last-child {
+  margin-bottom: 0;
+}
+
+.retry-btn {
+  margin-top: 12px;
+  padding: 9px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  background: #f2f2f2;
+}
+
+
+/* =====================================================
+   RESPONSIVE - recommendations
+===================================================== */
+
+@media (max-width: 780px) {
+  .rec-strip {
+    margin-top: 40px;
+    padding-top: 28px;
+  }
+
+  .rec-how {
+    padding: 22px 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .rec-strip-row {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .rec-strip-head h3 {
+    font-size: 1.3rem;
+  }
+}
