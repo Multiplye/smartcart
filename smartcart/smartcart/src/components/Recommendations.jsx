@@ -31,13 +31,18 @@ function describeMatch(percent) {
  * The card deliberately explains WHY it is being suggested. A
  * recommendation you cannot question is just an advert.
  */
-function RecommendationCard({ product, seedProducts }) {
+function RecommendationCard({ product, seedProducts, index = 0 }) {
   const { addItem } = useCart();
 
   const [justAdded, setJustAdded] = useState(false);
   const [error, setError] = useState(null);
 
   const match = describeMatch(product.match_percent);
+
+  // Cards arrive one after another rather than all at once. The index is
+  // known here, so the delay is set here; the animation itself lives in
+  // App.css. Capped at 8 so a long list never makes the last card wait.
+  const delay = Math.min(index, 8) * 70;
 
   const handleAdd = async () => {
     setError(null);
@@ -61,7 +66,10 @@ function RecommendationCard({ product, seedProducts }) {
       : null;
 
   return (
-    <article className="ai-card-rec">
+    <article
+      className="ai-card-rec"
+      style={{ "--rec-delay": `${delay}ms` }}
+    >
       <Link to={`/product/${product.id}`} className="ai-card-image">
         <img src={product.image} alt={product.name} />
 
@@ -237,6 +245,25 @@ function Recommendations() {
           <div className="ai-loading-spinner" />
 
           <p>Matching products against your history...</p>
+
+          {/* Skeleton cards. A spinner alone leaves the page looking
+              empty; these show the shape of what is coming and make the
+              wait feel shorter. Hidden from screen readers, because
+              they carry no information. */}
+          <div className="ai-grid ai-skeleton-grid" aria-hidden="true">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                className="ai-skeleton"
+                key={i}
+                style={{ "--rec-delay": `${i * 90}ms` }}
+              >
+                <div className="ai-skeleton-image" />
+                <div className="ai-skeleton-line ai-skeleton-line-short" />
+                <div className="ai-skeleton-line" />
+                <div className="ai-skeleton-line ai-skeleton-line-tiny" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -260,14 +287,15 @@ function Recommendations() {
               actually reason about. */}
           {isPersonal && seedProducts.length > 0 && (
             <section className="ai-learned">
-              <h3>Because you bought</h3>
+              <h3 className="ai-rise">Because you bought</h3>
 
               <div className="ai-seed-row">
-                {seedProducts.map((product) => (
+                {seedProducts.map((product, i) => (
                   <Link
                     to={`/product/${product.id}`}
-                    className="ai-seed-chip"
+                    className="ai-seed-chip ai-rise"
                     key={product.id}
+                    style={{ "--rec-delay": `${i * 60}ms` }}
                   >
                     <img src={product.image} alt="" />
 
@@ -286,17 +314,26 @@ function Recommendations() {
               ========================================== */}
           {products.length > 0 && (
             <section className="ai-summary">
-              <div className="ai-summary-item">
+              <div
+                className="ai-summary-item ai-rise"
+                style={{ "--rec-delay": "0ms" }}
+              >
                 <strong>{products.length}</strong>
                 <span>suggestions</span>
               </div>
 
-              <div className="ai-summary-item">
+              <div
+                className="ai-summary-item ai-rise"
+                style={{ "--rec-delay": "70ms" }}
+              >
                 <strong>{strongCount}</strong>
                 <span>strong matches</span>
               </div>
 
-              <div className="ai-summary-item">
+              <div
+                className="ai-summary-item ai-rise"
+                style={{ "--rec-delay": "140ms" }}
+              >
                 <strong>{isPersonal ? "Yes" : "No"}</strong>
                 <span>personalised</span>
               </div>
@@ -307,7 +344,7 @@ function Recommendations() {
               TOOLBAR
               ========================================== */}
           {products.length > 1 && (
-            <div className="ai-toolbar">
+            <div className="ai-toolbar ai-rise">
               <span className="ai-toolbar-label">Sort by</span>
 
               {[
@@ -335,11 +372,12 @@ function Recommendations() {
               ========================================== */}
           {sorted.length > 0 ? (
             <section className="ai-grid">
-              {sorted.map((product) => (
+              {sorted.map((product, i) => (
                 <RecommendationCard
                   key={product.id}
                   product={product}
                   seedProducts={seedProducts}
+                  index={i}
                 />
               ))}
             </section>
@@ -382,39 +420,84 @@ function Recommendations() {
           {/* ==========================================
               HOW IT WORKS
               ==========================================
-              Plain-English explanation of the algorithm. Academic
-              projects are marked on whether you can explain the
-              approach - this is that explanation, in the product. */}
+              This used to be three paragraphs of plain text sitting
+              under the grid. It was accurate and it was ugly - the
+              page looked like it ended in an essay.
+
+              It is now collapsed by default with just a one-line
+              summary, so the page finishes on the products. The full
+              explanation is still there, one click away, because an
+              academic project is marked on being able to explain the
+              approach. Three-step layout instead of a wall of prose. */}
           <section className="rec-how">
-            <h3>How does this work?</h3>
+            <details>
+              <summary>
+                <span className="rec-how-icon" aria-hidden="true">
+                  ?
+                </span>
 
-            <p>
-              Every product&apos;s name, category and description is turned
-              into a mathematical vector with a technique called
-              <strong> TF-IDF</strong>, which gives more weight to words that
-              are distinctive to a product and less to words that appear
-              everywhere. We then measure the angle between vectors using
-              <strong> cosine similarity</strong> - the smaller the angle, the
-              more alike two products are.
-            </p>
+                <span className="rec-how-text">
+                  <strong>How does this work?</strong>
+                  <small>
+                    TF-IDF vectors, cosine similarity, and a small
+                    rating bonus
+                  </small>
+                </span>
 
-            <p>
-              Product ratings are mixed in as a small bonus (15%), so a
-              good match with a good average rating comes out on top.
-              When we have your order history we average the vectors of
-              what you bought to build a profile and compare every other
-              product against it. No purchase history means no profile,
-              which is why new visitors see the most popular products
-              instead.
-            </p>
+                <span className="rec-how-toggle" aria-hidden="true" />
+              </summary>
 
-            <p className="rec-how-note">
-              The percentage on each card is the overall match score after
-              ratings are blended in. Products shown as{" "}
-              <strong>Popular</strong> carry no percentage, because a
-              popularity ranking compares nothing and so has no similarity
-              score to report.
-            </p>
+              <div className="rec-how-body">
+                <ol className="rec-steps">
+                  <li>
+                    <span className="rec-step-no">1</span>
+                    <div>
+                      <strong>Every product becomes a vector</strong>
+                      <p>
+                        Its name, category and description are scored
+                        with <em>TF-IDF</em>, which weights words that
+                        are distinctive to a product more heavily than
+                        words that appear everywhere.
+                      </p>
+                    </div>
+                  </li>
+
+                  <li>
+                    <span className="rec-step-no">2</span>
+                    <div>
+                      <strong>Similarity is the angle between them</strong>
+                      <p>
+                        We take the <em>cosine similarity</em> of those
+                        vectors. The smaller the angle, the more alike
+                        two products are.
+                      </p>
+                    </div>
+                  </li>
+
+                  <li>
+                    <span className="rec-step-no">3</span>
+                    <div>
+                      <strong>Your history sets the direction</strong>
+                      <p>
+                        The vectors of what you bought are averaged into
+                        a taste profile, and every other product is
+                        scored against it. Ratings count for a 15%
+                        bonus, so a close match with a good average
+                        rating wins.
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+
+                <p className="rec-how-note">
+                  No order history means no profile - which is why new
+                  visitors see popular products instead. Those cards
+                  show no percentage, because a popularity ranking
+                  compares nothing and so has no similarity score to
+                  report.
+                </p>
+              </div>
+            </details>
           </section>
         </>
       )}
