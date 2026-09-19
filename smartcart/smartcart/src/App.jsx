@@ -4,6 +4,7 @@ import "./App.css";
 import ProductList from "./components/ProductList";
 import Auth from "./components/Auth";
 import Products from "./components/Products";
+import ManageProducts from "./components/ManageProducts";
 
 import { useAuth } from "./context/useAuth";
 
@@ -18,7 +19,7 @@ function Home({
   cartCount,
   cartTotal,
 }) {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, isSeller, isAdmin } = useAuth();
 
   return (
     <div className="app">
@@ -31,6 +32,9 @@ function Home({
         <nav>
           <Link to="/">Home</Link>
           <Link to="/products">Products</Link>
+          {(isSeller || isAdmin) && (
+            <Link to="/manage">Manage</Link>
+          )}
           <a href="#categories">Categories</a>
           <a href="#about">About</a>
           <a href="#auth">
@@ -636,6 +640,12 @@ function App() {
             addToCart={addToCart}
           />
         }
+      />
+
+      {/* SELLER / ADMIN PRODUCT MANAGEMENT */}
+      <Route
+        path="/manage"
+        element={<ManageProducts />}
       />
 
     </Routes>

@@ -1,3 +1,5 @@
+from functools import wraps
+
 from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -105,30 +107,214 @@ def user_to_dict(user):
     }
 
 
+# =========================
+# ROLE PROTECTION
+# =========================
+#
+# How this works:
+#
+#   1. The React app remembers which user is logged in.
+#   2. When it calls a protected route, it sends that user's id in a
+#      request header called "X-User-Id".
+#   3. The decorator below looks the id up in the database and checks
+#      the user's role before letting the request through.
+#
+# Why look the user up in the database instead of trusting the header?
+# Because the header only carries an id, not a role. Even if someone
+# edits the header to claim a different id, the role still comes from
+# the database - so a buyer cannot pretend to be a seller.
+#
+# NOTE for the report: this is a simplified approach suitable for a
+# coursework project. A production system would send a signed token
+# (e.g. JWT) instead, so the identity could not be guessed at all.
+
+def get_current_user():
+    """Read the X-User-Id header and return the matching User, or None."""
+    raw_id = request.headers.get("X-User-Id")
+
+    if not raw_id:
+        return None
+
+    try:
+        user_id = int(raw_id)
+    except (TypeError, ValueError):
+        # Header was not a number - treat as "not logged in"
+        return None
+
+    return db.session.get(User, user_id)
+
+
+def roles_required(*allowed_roles):
+    """Decorator: only let through users whose role is in allowed_roles.
+
+    Usage:
+        @app.route("/api/products", methods=["POST"])
+        @roles_required("seller", "admin")
+        def create_product():
+            ...
+
+    Returns:
+        401 if nobody is logged in
+        403 if logged in but the role is not allowed
+    """
+
+    def decorator(view_function):
+
+        @wraps(view_function)
+        def wrapper(*args, **kwargs):
+
+            user = get_current_user()
+
+            if user is None:
+                return {
+                    "error": "You must be logged in to do that."
+                }, 401
+
+            if user.role not in allowed_roles:
+                return {
+                    "error": (
+                        f"Your account is a '{user.role}' account. "
+                        f"This action needs one of: {', '.join(allowed_roles)}."
+                    )
+                }, 403
+
+            # Handy for the view function: it can read who made the request
+            request.current_user = user
+
+            return view_function(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+# =========================
+# PRODUCTS - READ (public)
+# =========================
+
 @app.route("/api/products", methods=["GET"])
 def get_products():
-    products = Product.query.all()
+    """List products. Optional ?category= and ?search= filters."""
+
+    query = Product.query
+
+    # Filter by category, e.g. /api/products?category=Electronics
+    category = request.args.get("category")
+    if category:
+        query = query.filter(
+            Product.category.ilike(category.strip())
+        )
+
+    # Search across name and description, e.g. /api/products?search=watch
+    search = request.args.get("search")
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            Product.name.ilike(term) | Product.description.ilike(term)
+        )
+
+    products = query.all()
 
     return [product_to_dict(product) for product in products]
 
 
+@app.route("/api/products/<int:product_id>", methods=["GET"])
+def get_single_product(product_id):
+    """Return one product, or 404 if it does not exist."""
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    return product_to_dict(product)
+
+
 # =========================
-# CREATE PRODUCT
+# PRODUCTS - CREATE (seller / admin)
 # =========================
+
+def read_product_payload(data, existing=None):
+    """Validate incoming product data.
+
+    Returns (values, error_message).
+
+    `existing` is the Product being updated, if any. When updating we
+    allow the caller to send only the fields they want to change - any
+    field they leave out keeps its current value.
+    """
+
+    def current(field, default=None):
+        """Value from the request, falling back to the existing product."""
+        if field in data:
+            return data[field]
+        if existing is not None:
+            return getattr(existing, field)
+        return default
+
+    name = (current("name") or "").strip()
+    description = (current("description") or "").strip()
+    category = (current("category") or "").strip()
+    image = current("image")
+    price = current("price")
+    stock = current("stock", 0)
+
+    # --- Required text fields ---
+    if not name:
+        return None, "Product name is required."
+
+    if not description:
+        return None, "Product description is required."
+
+    if not category:
+        return None, "Product category is required."
+
+    # --- Price must be a number and cannot be negative ---
+    try:
+        price = float(price)
+    except (TypeError, ValueError):
+        return None, "Price must be a number."
+
+    if price < 0:
+        return None, "Price cannot be negative."
+
+    # --- Stock must be a whole number and cannot be negative ---
+    try:
+        stock = int(stock)
+    except (TypeError, ValueError):
+        return None, "Stock must be a whole number."
+
+    if stock < 0:
+        return None, "Stock cannot be negative."
+
+    values = {
+        "name": name,
+        "description": description,
+        "price": price,
+        "category": category,
+        "image": image,
+        "stock": stock,
+    }
+
+    return values, None
+
 
 @app.route("/api/products", methods=["POST"])
+@roles_required("seller", "admin")
 def create_product():
+    """Add a new product. Sellers and admins only."""
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
-    product = Product(
-        name=data["name"],
-        description=data["description"],
-        price=data["price"],
-        category=data["category"],
-        image=data.get("image"),
-        stock=data.get("stock", 0)
-    )
+    if not data:
+        return {"error": "No product data was sent."}, 400
+
+    values, error = read_product_payload(data)
+
+    if error:
+        return {"error": error}, 400
+
+    product = Product(**values)
 
     db.session.add(product)
     db.session.commit()
@@ -137,6 +323,69 @@ def create_product():
         "message": "Product created successfully!",
         "product": product_to_dict(product)
     }, 201
+
+
+# =========================
+# PRODUCTS - UPDATE (seller / admin)
+# =========================
+
+@app.route("/api/products/<int:product_id>", methods=["PUT"])
+@roles_required("seller", "admin")
+def update_product(product_id):
+    """Edit a product. Sellers and admins only.
+
+    The caller may send only the fields they want to change.
+    """
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    data = request.get_json(silent=True)
+
+    if not data:
+        return {"error": "No product data was sent."}, 400
+
+    values, error = read_product_payload(data, existing=product)
+
+    if error:
+        return {"error": error}, 400
+
+    for field, value in values.items():
+        setattr(product, field, value)
+
+    db.session.commit()
+
+    return {
+        "message": "Product updated successfully!",
+        "product": product_to_dict(product)
+    }, 200
+
+
+# =========================
+# PRODUCTS - DELETE (seller / admin)
+# =========================
+
+@app.route("/api/products/<int:product_id>", methods=["DELETE"])
+@roles_required("seller", "admin")
+def delete_product(product_id):
+    """Remove a product. Sellers and admins only."""
+
+    product = db.session.get(Product, product_id)
+
+    if product is None:
+        return {"error": "Product not found."}, 404
+
+    name = product.name
+
+    db.session.delete(product)
+    db.session.commit()
+
+    return {
+        "message": f"'{name}' was deleted.",
+        "deleted_id": product_id
+    }, 200
 
 
 # =========================
