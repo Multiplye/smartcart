@@ -195,13 +195,28 @@ img {
   margin: 20px 0;
 
   font-family: "Poppins", sans-serif;
-  font-size: clamp(45px, 5vw, 72px);
-  line-height: 1.05;
-  font-weight: 800;
+  /* 800 was too heavy to sit next to product cards: at this size it read as
+     shouting. 600 still carries the line without competing with the page. */
+  font-size: clamp(42px, 4.6vw, 66px);
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--dark-blue);
 }
 
+/* The second line is a serif italic rather than the same sans in purple.
+   Colour alone was doing all the emphasis before; the typeface now shares
+   the job, so the purple can stay quieter. Playfair Display ships a true
+   italic - Poppins does not, so an italic on it would be a fake slant. */
 .hero h1 span {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  /* Optical correction: Playfair is a high-contrast serif whose stroke
+     weight runs lighter than Poppins at the same size, and its ascenders
+     need a touch more room, so it is nudged up a little. */
+  font-size: 1.06em;
+  line-height: 1.1;
   color: var(--purple);
 }
 

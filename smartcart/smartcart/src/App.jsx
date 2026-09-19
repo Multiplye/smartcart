@@ -52,6 +52,14 @@ function Home() {
             SMART SHOPPING IN NEPAL
           </p>
 
+          {/*
+            The two lines used to be identical in weight and only differed
+            in colour, which made the heading read as one loud block. The
+            second line now switches to Playfair Display, so the serif
+            carries the emphasis instead of the colour having to do all of
+            it. This is the same pairing used on the "For You" page, so the
+            site keeps one voice across both.
+          */}
           <h1>
             Smart Shopping.
             <br />
