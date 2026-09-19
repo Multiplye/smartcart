@@ -348,7 +348,24 @@ def main():
     # --- now buy something ---
     print("\n   (buying an item to personalise the recommendations)")
 
-    bought = products[0]
+    # Pick a product that actually has stock. This used to grab
+    # products[0] unconditionally, which broke the moment the first
+    # product happened to be out of stock - a state that is perfectly
+    # legitimate in a shop (another test or a live demo may have
+    # bought the last one).
+    in_stock = [p for p in products if (p.stock or 0) > 0]
+
+    if not in_stock:
+        print("\n  No product has any stock, so the purchase cannot be")
+        print("  simulated. Restore stock and re-run.")
+        return
+
+    bought = in_stock[0]
+
+    # Remember what we are about to consume, so we can put it back at
+    # the end. A test suite that silently drains the catalogue is a
+    # test suite that breaks the next thing you run.
+    stock_before = bought.stock
 
     client.post("/api/cart", json={"product_id": bought.id}, headers=buyer)
     r = client.post("/api/orders", json=DELIVERY, headers=buyer)
@@ -467,6 +484,16 @@ def main():
         ).delete(synchronize_session=False)
 
         db.session.commit()
+
+        # Put back the stock our test purchase consumed. The order rows
+        # are gone, so the decrement would otherwise be permanent.
+        restored = db.session.get(Product, bought.id)
+
+        if restored is not None:
+            restored.stock = stock_before
+            db.session.commit()
+
+        print(f"  Restored {bought.name} to stock {stock_before}.")
 
         removed = 0
         for email in TEST_EMAILS:

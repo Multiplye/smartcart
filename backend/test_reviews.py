@@ -281,14 +281,36 @@ def main():
           listed is not None and listed["rating_average"] == 4.0,
           f"got {listed.get('rating_average') if listed else None}")
 
-    # An unreviewed product should report zero, not crash
+    # An unreviewed product should report zero, not crash.
+    #
+    # Careful: we cannot assert that EVERY other product has zero
+    # reviews. The database may legitimately contain reviews from
+    # seed_demo_data.py (or from a previous manual test). What we
+    # actually care about is that a product with no review rows reports
+    # zeros rather than omitting the fields - so we find a product that
+    # genuinely has no reviews and check that one.
     r = client.get("/api/products")
-    unreviewed = [p for p in r.get_json() if p["id"] != kettle_id]
+    listing = r.get_json()
+
+    untouched = [
+        p for p in listing
+        if p["id"] != kettle_id and p.get("rating_count") == 0
+    ]
+
+    check("there is at least one unreviewed product to check",
+          len(untouched) > 0)
 
     check("products with no reviews report 0",
           all(p.get("rating_average") == 0.0 and p.get("rating_count") == 0
-              for p in unreviewed),
-          "some product had no rating fields")
+              for p in untouched),
+          "some unreviewed product had no rating fields")
+
+    # And the stronger rule: every product in the listing carries BOTH
+    # keys, reviewed or not. A missing key is what originally caused a
+    # frontend crash, so this is the assertion that really matters.
+    check("every product reports both rating fields",
+          all("rating_average" in p and "rating_count" in p for p in listing),
+          "a product was missing rating_average or rating_count")
 
     # ---------------------------------------------------------------
     # 8. Editing your own review

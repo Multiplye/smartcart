@@ -570,10 +570,30 @@ def main():
         # The victim is a buyer: give them a cart, an order and a review
         # so we can prove the delete really cleans up.
 
+        # Use our OWN product rather than a real catalogue item.
+        #
+        # This used to order product 1, which silently drained its stock
+        # every time the suite ran - exactly the kind of side effect
+        # that makes a test suite untrustworthy. A test may create and
+        # destroy its own fixtures, but it must not quietly damage the
+        # data it is meant to be checking.
+        with app.app_context():
+            fixture = Product(
+                name=f"{TEST_PRODUCT_PREFIX}Victim Fixture",
+                description="Ordered by the admin tests, then removed.",
+                price=300,
+                category="Home",
+                image="https://example.com/fixture.jpg",
+                stock=20,
+            )
+            db.session.add(fixture)
+            db.session.commit()
+            fixture_id = fixture.id
+
         # Put something in their cart
         cart_add = client.post(
             f"{BASE}/cart",
-            json={"product_id": 1, "quantity": 2},
+            json={"product_id": fixture_id, "quantity": 2},
             headers=as_user(client, victim_id),
         )
 
@@ -597,9 +617,11 @@ def main():
             order_response.get_json(),
         )
 
-        # Write a review on the product they just bought
+        # Write a review on the product they just bought.
+        # Again, our own fixture - never a real catalogue product, so
+        # that product ratings are left exactly as we found them.
         review_response = client.post(
-            f"{BASE}/products/1/reviews",
+            f"{BASE}/products/{fixture_id}/reviews",
             json={"rating": 4, "comment": "Testing the admin delete."},
             headers=as_user(client, victim_id),
         )
@@ -874,6 +896,21 @@ def main():
             "the real catalogue is intact",
             Product.query.filter(Product.id <= 30).count() == 30,
             Product.query.filter(Product.id <= 30).count(),
+        )
+
+        # The strongest hygiene check: no real product's stock should
+        # have moved. If this fails, some part of the suite is ordering
+        # catalogue items and leaving them decremented.
+        moved = [
+            (p.id, p.name, p.stock)
+            for p in Product.query.filter(Product.id <= 30).all()
+            if p.stock != 10
+        ]
+
+        check(
+            "no catalogue product had its stock changed",
+            len(moved) == 0,
+            moved,
         )
 
     # ---------------------------------------------------------------

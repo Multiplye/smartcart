@@ -312,8 +312,35 @@ def main():
     # -----------------------------------------------------------------
     line("STEP 6 - DELETE AN ACCOUNT AND WATCH IT CLEAN UP")
 
+    # Create a throwaway product for this account to order, rather than
+    # buying a real catalogue item. Ordering a real product would
+    # permanently reduce its stock every time this script runs, quietly
+    # damaging the demo shop.
+    status, body = call(
+        "POST",
+        "/products",
+        {
+            "name": "Demo Admin Walkthrough Order Item",
+            "description": "A fixture for the walkthrough, removed at the end.",
+            "price": 450,
+            "category": "Home",
+            "image": "https://example.com/fixture.jpg",
+            "stock": 20,
+        },
+        user_id=admin_id,
+    )
+
+    fixture_id = body.get("product", {}).get("id") if status == 201 else None
+
+    show("created a throwaway product", f"{status} (id {fixture_id})")
+
     # Give the account something to lose: a cart, an order and a review.
-    call("POST", "/cart", {"product_id": 1, "quantity": 1}, user_id=seller_id)
+    call(
+        "POST",
+        "/cart",
+        {"product_id": fixture_id, "quantity": 1},
+        user_id=seller_id,
+    )
 
     status, _ = call(
         "POST",
@@ -331,7 +358,7 @@ def main():
 
     status, _ = call(
         "POST",
-        "/products/1/reviews",
+        f"/products/{fixture_id}/reviews",
         {"rating": 5, "comment": "Written so the delete has something to remove."},
         user_id=seller_id,
     )
@@ -357,6 +384,13 @@ def main():
 
         show("removed the walkthrough product", status)
 
+    if fixture_id:
+        status, body = call(
+            "DELETE", f"/products/{fixture_id}", user_id=admin_id
+        )
+
+        show("removed the order fixture product", status)
+
     status, body = call("DELETE", f"/admin/users/{buyer_id}", user_id=admin_id)
 
     show("removed the demo buyer", status)
@@ -364,6 +398,15 @@ def main():
     status, body = call("GET", "/products")
 
     show("products still in the shop", len(body))
+
+    # Confirm the real catalogue is untouched. This is the check that
+    # would have caught the stock drain the earlier version caused.
+    pristine = [p for p in body if p["stock"] != 10 and p["id"] <= 30]
+
+    show(
+        "catalogue products not at stock 10",
+        pristine if pristine else "none - all 30 untouched",
+    )
 
     print("\n  The admin account is left in place on purpose - the")
     print("  backend refuses to let an admin delete themselves. Remove")
