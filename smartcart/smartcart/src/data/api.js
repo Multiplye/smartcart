@@ -186,6 +186,61 @@ export async function clearCart() {
 }
 
 // =========================
+// Orders
+// =========================
+
+/**
+ * Turn the current cart into an order.
+ * Needs the delivery details:
+ *   { full_name, phone, address, city }
+ */
+export async function placeOrder(deliveryDetails) {
+  return requestJson("/api/orders", {
+    method: "POST",
+    body: deliveryDetails,
+  });
+}
+
+/**
+ * List orders.
+ *
+ * What you get back depends on your role:
+ *   buyer  -> only your own orders
+ *   seller -> orders containing your products
+ *   admin  -> every order
+ *
+ * Optional filter: { status: "Pending" }
+ */
+export async function getOrders(filters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.status) params.set("status", filters.status);
+
+  const query = params.toString();
+  const path = query ? `/api/orders?${query}` : "/api/orders";
+
+  return requestJson(path);
+}
+
+/** Fetch one order. 403 if it is not yours. */
+export async function getOrder(orderId) {
+  return requestJson(`/api/orders/${orderId}`);
+}
+
+/** Move an order to the next stage. Sellers and admins only. */
+export async function updateOrderStatus(orderId, status) {
+  return requestJson(`/api/orders/${orderId}/status`, {
+    method: "PUT",
+    body: { status },
+  });
+}
+
+/** Cancel an order and return the stock. */
+export async function cancelOrder(orderId) {
+  return requestJson(`/api/orders/${orderId}`, { method: "DELETE" });
+}
+
+// =========================
 // Accounts
 // =========================
 

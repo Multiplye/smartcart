@@ -4,6 +4,8 @@ import ProductList from "./components/ProductList";
 import Auth from "./components/Auth";
 import Products from "./components/Products";
 import ManageProducts from "./components/ManageProducts";
+import Checkout from "./components/Checkout";
+import Orders from "./components/Orders";
 
 import { useAuth } from "./context/useAuth";
 import { useCart } from "./context/useCart";
@@ -42,6 +44,7 @@ function Home() {
         <nav>
           <Link to="/">Home</Link>
           <Link to="/products">Products</Link>
+          {isLoggedIn && <Link to="/orders">Orders</Link>}
           {(isSeller || isAdmin) && (
             <Link to="/manage">Manage</Link>
           )}
@@ -52,9 +55,9 @@ function Home() {
           </a>
         </nav>
 
-        <a href="#cart" className="cart-btn">
+        <Link to="/checkout" className="cart-btn">
           Cart ({cartCount})
-        </a>
+        </Link>
       </header>
 
       {/* ================= HERO ================= */}
@@ -387,9 +390,11 @@ function Home() {
                 </strong>
               </div>
 
-              <button className="checkout-btn">
-                Proceed to Checkout
-              </button>
+              <Link to="/checkout" className="checkout-btn-link">
+                <button className="checkout-btn">
+                  Proceed to Checkout
+                </button>
+              </Link>
             </div>
 
           </div>
@@ -560,6 +565,15 @@ function App() {
   // so this component no longer needs to hold any cart state.
   // ProductList and Products reach the cart themselves via useCart().
 
+  /* =========================
+     NAVBAR
+     =========================
+     Shared by every page, so it can show the cart count and the right
+     links no matter where you are.
+
+     It would be cleaner still to pull this into its own component -
+     that is a good refactor for later, once the pages settle down.
+  ========================= */
   return (
     <Routes>
 
@@ -568,6 +582,12 @@ function App() {
 
       {/* ALL PRODUCTS PAGE */}
       <Route path="/products" element={<Products />} />
+
+      {/* CHECKOUT - cart to order */}
+      <Route path="/checkout" element={<Checkout />} />
+
+      {/* ORDER HISTORY - all three roles, different views */}
+      <Route path="/orders" element={<Orders />} />
 
       {/* SELLER / ADMIN PRODUCT MANAGEMENT */}
       <Route path="/manage" element={<ManageProducts />} />

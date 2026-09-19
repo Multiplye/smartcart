@@ -121,6 +121,94 @@ class CartItem(db.Model):
     )
 
 
+# =========================
+# Order Model
+# =========================
+#
+# One row = one placed order.
+#
+# Notice we record the delivery details on the ORDER, not on the user.
+# That is deliberate: a shopper may want one order delivered to their
+# home and the next to their office. If we stored the address on the
+# user, placing the second order would silently rewrite the first one's
+# delivery address - a genuine bug in a lot of student projects.
+#
+# The status column drives the whole fulfilment flow:
+#
+#   Pending -> Confirmed -> Shipped -> Delivered
+#                \\
+#                 -> Cancelled
+
+ORDER_STATUSES = ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"]
+
+
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Who placed it. Every order belongs to exactly one user.
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False
+    )
+
+    # --- Delivery details, copied at the moment of ordering ---
+    full_name = db.Column(db.String(150), nullable=False)
+    phone = db.Column(db.String(30), nullable=False)
+    address = db.Column(db.String(400), nullable=False)
+    city = db.Column(db.String(100), nullable=False)
+
+    # --- Payment. Cash on delivery only, per the project scope. ---
+    payment_method = db.Column(db.String(40), nullable=False, default="Cash on Delivery")
+
+    # --- Money ---
+    #
+    # total is a snapshot of what the shopper owed at checkout. We keep
+    # it even though it is the sum of the items, because prices change
+    # later - and an order is a record of what was agreed, not a live
+    # calculation. If a seller raises a price tomorrow, yesterday's
+    # order must still show yesterday's price.
+    total = db.Column(db.Float, nullable=False, default=0)
+
+    status = db.Column(db.String(20), nullable=False, default="Pending")
+
+    # When the order was placed
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+
+class OrderItem(db.Model):
+    """One line of an order: "N of product X, at this price".
+
+    This is the important table. It copies the product's NAME and PRICE
+    at the time of the order. That way:
+      - if the seller later edits or deletes the product, the order
+        still shows what the shopper actually bought;
+      - the order total never drifts.
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    order_id = db.Column(
+        db.Integer,
+        db.ForeignKey("order.id"),
+        nullable=False
+    )
+
+    # Kept so we can link back to the product page, but NOT relied on
+    # for the display - the product might be gone.
+    product_id = db.Column(db.Integer, nullable=True)
+
+    # The values copied at purchase time
+    product_name = db.Column(db.String(200), nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+
+    @property
+    def subtotal(self):
+        return round(self.unit_price * self.quantity, 2)
+
+
+
 
 # =========================
 # Home Route
@@ -718,6 +806,415 @@ def clear_cart():
     db.session.commit()
 
     return cart_response("Your cart is now empty.")
+
+
+# =========================
+# ORDERS
+# =========================
+#
+# THE CHECKOUT FLOW, step by step:
+#
+#   1. Check the cart is not empty.
+#   2. Check EVERY item is still in stock. If any is not, refuse the
+#      whole order and say which item - we never half-place an order.
+#   3. Create the Order row with the delivery details.
+#   4. Copy each cart item into an OrderItem, recording the price paid.
+#   5. Reduce the stock for each product.
+#   6. Empty the cart.
+#
+# Steps 3-6 happen in ONE database transaction. If anything fails
+# half-way, db.session.rollback() undoes the lot, so we can never end
+# up with stock reduced but no order recorded.
+
+# Which status a seller/admin may move an order to next.
+# This is what stops an order jumping straight from Pending to Delivered.
+ALLOWED_STATUS_TRANSITIONS = {
+    "Pending": ["Confirmed", "Cancelled"],
+    "Confirmed": ["Shipped", "Cancelled"],
+    "Shipped": ["Delivered"],
+    "Delivered": [],
+    "Cancelled": [],
+}
+
+
+def order_to_dict(order, include_items=True):
+    """Turn an Order into JSON."""
+
+    body = {
+        "id": order.id,
+        "user_id": order.user_id,
+        "full_name": order.full_name,
+        "phone": order.phone,
+        "address": order.address,
+        "city": order.city,
+        "payment_method": order.payment_method,
+        "total": order.total,
+        "status": order.status,
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+    }
+
+    if include_items:
+        items = OrderItem.query.filter_by(order_id=order.id).all()
+
+        body["items"] = [
+            {
+                "product_id": item.product_id,
+                "product_name": item.product_name,
+                "unit_price": item.unit_price,
+                "quantity": item.quantity,
+                "subtotal": item.subtotal,
+            }
+            for item in items
+        ]
+
+        body["item_count"] = sum(item.quantity for item in items)
+
+    return body
+
+
+@app.route("/api/orders", methods=["POST"])
+@roles_required("buyer", "seller", "admin")
+def place_order():
+    """Turn the current user's cart into an order.
+
+    Body:
+        {
+          "full_name": "...", "phone": "...",
+          "address": "...",   "city": "..."
+        }
+    """
+
+    user = request.current_user
+    data = request.get_json(silent=True) or {}
+
+    # --- 1. Delivery details ---
+    full_name = (data.get("full_name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    address = (data.get("address") or "").strip()
+    city = (data.get("city") or "").strip()
+
+    missing = [
+        label
+        for label, value in [
+            ("Full name", full_name),
+            ("Phone number", phone),
+            ("Delivery address", address),
+            ("City", city),
+        ]
+        if not value
+    ]
+
+    if missing:
+        return {
+            "error": f"Please fill in: {', '.join(missing)}."
+        }, 400
+
+    # --- 2. Is there anything to order? ---
+    cart_items = CartItem.query.filter_by(user_id=user.id).all()
+
+    if not cart_items:
+        return {"error": "Your cart is empty, so there is nothing to order."}, 400
+
+    # --- 3. Stock check, BEFORE we change anything ---
+    #
+    # We check all of them first so the shopper gets one clear message
+    # listing every problem, rather than fixing one item only to be
+    # told about the next.
+    problems = []
+
+    for cart_item in cart_items:
+        product = db.session.get(Product, cart_item.product_id)
+
+        if product is None:
+            problems.append("One of the products in your cart no longer exists.")
+            continue
+
+        if product.stock < cart_item.quantity:
+            if product.stock == 0:
+                problems.append(f"'{product.name}' is out of stock.")
+            else:
+                problems.append(
+                    f"'{product.name}' - only {product.stock} left, "
+                    f"but your cart asks for {cart_item.quantity}."
+                )
+
+    if problems:
+        return {"error": " ".join(problems)}, 400
+
+    # --- 4. Everything is fine - build the order ---
+    try:
+        order = Order(
+            user_id=user.id,
+            full_name=full_name,
+            phone=phone,
+            address=address,
+            city=city,
+            payment_method="Cash on Delivery",
+            status="Pending",
+            total=0,
+        )
+
+        db.session.add(order)
+
+        # flush() sends the INSERT so order.id is filled in, but does not
+        # commit - the whole thing is still one transaction.
+        db.session.flush()
+
+        running_total = 0
+
+        for cart_item in cart_items:
+            product = db.session.get(Product, cart_item.product_id)
+
+            # Copy the name and price as they are RIGHT NOW
+            line = OrderItem(
+                order_id=order.id,
+                product_id=product.id,
+                product_name=product.name,
+                unit_price=product.price,
+                quantity=cart_item.quantity,
+            )
+
+            db.session.add(line)
+
+            running_total += product.price * cart_item.quantity
+
+            # Reduce the stock
+            product.stock -= cart_item.quantity
+
+            # Remove the cart row
+            db.session.delete(cart_item)
+
+        order.total = round(running_total, 2)
+
+        db.session.commit()
+
+        return {
+            "message": f"Order #{order.id} placed. Pay cash on delivery.",
+            "order": order_to_dict(order),
+        }, 201
+
+    except Exception:
+        # Something went wrong part-way through. Undo everything so we
+        # do not leave the database half-updated.
+        db.session.rollback()
+        return {"error": "Could not place the order. Please try again."}, 500
+
+
+@app.route("/api/orders", methods=["GET"])
+@roles_required("buyer", "seller", "admin")
+def get_orders():
+    """List orders.
+
+    Buyers see only their own.
+    Sellers see orders containing at least one of their products.
+    Admins see everything.
+
+    Optional ?status=Pending filters by status.
+    """
+
+    user = request.current_user
+    status_filter = request.args.get("status")
+
+    if user.role == "buyer":
+        query = Order.query.filter_by(user_id=user.id)
+
+    elif user.role == "seller":
+        # Gather the ids of orders that contain one of this seller's
+        # products, then fetch just those.
+        own_product_ids = [
+            row.id for row in Product.query.filter_by(seller_id=user.id).all()
+        ]
+
+        order_ids = [
+            row.order_id
+            for row in OrderItem.query.filter(
+                OrderItem.product_id.in_(own_product_ids)
+            ).all()
+        ] if own_product_ids else []
+
+        query = Order.query.filter(Order.id.in_(order_ids))
+
+    else:
+        query = Order.query
+
+    if status_filter:
+        query = query.filter(Order.status.ilike(status_filter.strip()))
+
+    orders = query.order_by(Order.created_at.desc(), Order.id.desc()).all()
+
+    return [order_to_dict(order) for order in orders]
+
+
+def load_order_for_viewing(order_id):
+    """Fetch an order, but only if this user is allowed to see it.
+
+    Returns (order, error_message, status_code).
+    """
+    user = request.current_user
+    order = db.session.get(Order, order_id)
+
+    if order is None:
+        return None, "Order not found.", 404
+
+    if user.role == "admin":
+        return order, None, None
+
+    if order.user_id == user.id:
+        return order, None, None
+
+    if user.role == "seller":
+        # A seller may see an order only if it contains one of their
+        # products. They must not see the rest of somebody else's order
+        # history.
+        own_product_ids = [
+            row.id for row in Product.query.filter_by(seller_id=user.id).all()
+        ]
+
+        if own_product_ids:
+            contains_theirs = OrderItem.query.filter(
+                OrderItem.order_id == order_id,
+                OrderItem.product_id.in_(own_product_ids)
+            ).first()
+
+            if contains_theirs:
+                return order, None, None
+
+    return None, "You do not have permission to view this order.", 403
+
+
+@app.route("/api/orders/<int:order_id>", methods=["GET"])
+@roles_required("buyer", "seller", "admin")
+def get_single_order(order_id):
+    """Return one order, if the caller is allowed to see it."""
+
+    order, error, status = load_order_for_viewing(order_id)
+
+    if error:
+        return {"error": error}, status
+
+    return order_to_dict(order)
+
+
+@app.route("/api/orders/<int:order_id>/status", methods=["PUT"])
+@roles_required("seller", "admin")
+def update_order_status(order_id):
+    """Move an order to the next stage. Sellers and admins only.
+
+    Body: { "status": "Shipped" }
+    """
+
+    order = db.session.get(Order, order_id)
+
+    if order is None:
+        return {"error": "Order not found."}, 404
+
+    # A seller may only touch orders that contain their products.
+    if request.current_user.role == "seller":
+        own_product_ids = [
+            row.id
+            for row in Product.query.filter_by(seller_id=request.current_user.id).all()
+        ]
+
+        contains_theirs = OrderItem.query.filter(
+            OrderItem.order_id == order_id,
+            OrderItem.product_id.in_(own_product_ids)
+        ).first() if own_product_ids else None
+
+        if contains_theirs is None:
+            return {
+                "error": "This order does not contain any of your products."
+            }, 403
+
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get("status") or "").strip().title()
+
+    if new_status not in ORDER_STATUSES:
+        return {
+            "error": f"Status must be one of: {', '.join(ORDER_STATUSES)}."
+        }, 400
+
+    if new_status == order.status:
+        return {
+            "error": f"This order is already '{order.status}'."
+        }, 400
+
+    allowed = ALLOWED_STATUS_TRANSITIONS.get(order.status, [])
+
+    if new_status not in allowed:
+        if not allowed:
+            return {
+                "error": (
+                    f"An order that is '{order.status}' cannot be changed "
+                    "any further."
+                )
+            }, 400
+
+        return {
+            "error": (
+                f"An order that is '{order.status}' can only move to: "
+                f"{', '.join(allowed)}."
+            )
+        }, 400
+
+    order.status = new_status
+    db.session.commit()
+
+    return {
+        "message": f"Order #{order.id} is now '{order.status}'.",
+        "order": order_to_dict(order),
+    }, 200
+
+
+@app.route("/api/orders/<int:order_id>", methods=["DELETE"])
+@roles_required("buyer", "seller", "admin")
+def cancel_order(order_id):
+    """Cancel an order.
+
+    A buyer may cancel their own order, but only while it is still
+    Pending. A seller or admin may cancel at a later stage.
+    """
+
+    user = request.current_user
+    order = db.session.get(Order, order_id)
+
+    if order is None:
+        return {"error": "Order not found."}, 404
+
+    is_own_order = order.user_id == user.id
+
+    if not is_own_order and user.role not in ("seller", "admin"):
+        return {"error": "You cannot cancel this order."}, 403
+
+    if order.status == "Cancelled":
+        return {"error": "This order has already been cancelled."}, 400
+
+    if order.status == "Delivered":
+        return {
+            "error": "This order was already delivered, so it cannot be cancelled."
+        }, 400
+
+    if is_own_order and user.role == "buyer" and order.status != "Pending":
+        return {
+            "error": (
+                f"Your order is already '{order.status}', so it can no "
+                "longer be cancelled. Please contact the seller."
+            )
+        }, 400
+
+    # Put the stock back, since these items are no longer being bought
+    for line in OrderItem.query.filter_by(order_id=order_id).all():
+        product = db.session.get(Product, line.product_id)
+
+        if product is not None:
+            product.stock += line.quantity
+
+    order.status = "Cancelled"
+    db.session.commit()
+
+    return {
+        "message": f"Order #{order.id} was cancelled and the stock was returned.",
+        "order": order_to_dict(order),
+    }, 200
 
 
 # =========================
