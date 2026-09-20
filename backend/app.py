@@ -30,6 +30,62 @@ ROLES = ["buyer", "seller", "admin"]
 
 
 # =========================
+# Error handling
+# =========================
+#
+# Every route in this file returns JSON, and most of them return a JSON
+# error of their own ({"error": "Product not found."}, 404). But those
+# only cover the cases the route itself anticipates. Anything Flask
+# handles before a route runs - or where no route matches at all - falls
+# back to Flask's built-in HTML error page:
+#
+#     GET /api/products/abc
+#     -> <!doctype html><html lang=en><title>404 Not Found</title>...
+#
+# The int converter in "/api/products/<int:product_id>" does not match
+# "abc", so no route is selected. A browser frontend copes, because a
+# failed .json() lands in the same catch block as any other error. A
+# program calling this API - curl, a test, a second client - gets HTML
+# and a JSON parse error instead of "not found", which is misleading.
+#
+# These handlers make every error response JSON, so a caller can always
+# parse the body and read `error`.
+
+def _json_error(status, message):
+    """Build a JSON error body with a consistent shape."""
+    return {"error": message}, status
+
+
+@app.errorhandler(400)
+def handle_bad_request(_error):
+    return _json_error(400, "Bad request.")
+
+
+@app.errorhandler(404)
+def handle_not_found(_error):
+    # Deliberately vague. The caller is told the resource is not there;
+    # whether that is a route or an id does not help them and would leak
+    # the shape of the API to someone probing it.
+    return _json_error(404, "Not found.")
+
+
+@app.errorhandler(405)
+def handle_method_not_allowed(_error):
+    # Reached when the path exists but not for this method - e.g. DELETE
+    # on a collection endpoint. Worth its own message, because "not
+    # found" would send the caller looking for a problem with the URL.
+    return _json_error(405, "Method not allowed for this URL.")
+
+
+@app.errorhandler(500)
+def handle_server_error(_error):
+    # No exception detail in the body. A stack trace in an HTTP response
+    # is how internal file paths and query text end up in a client's
+    # logs.
+    return _json_error(500, "Something went wrong on the server.")
+
+
+# =========================
 # Product Model
 # =========================
 
