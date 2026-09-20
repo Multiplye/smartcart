@@ -667,11 +667,58 @@ img {
 }
 
 .products-page-header {
-  padding: 100px 8% 75px;
+  /* Bottom padding is generous on purpose: the search card below is
+     pulled up by -46px so it overlaps this block, and the extra room
+     is what the overlap eats into. Reduce this and the card starts
+     colliding with the "Back to Home" button. */
+  padding: 96px 8% 118px;
 
   text-align: center;
 
+  position: relative;
+  overflow: hidden;
+
   background: var(--light-blue);
+}
+
+/* Two soft circles behind the heading, positioned so they read as a
+   faint texture rather than as shapes. Purely decorative, so they are
+   hidden from assistive tech via `aria-hidden` on the markup side -
+   here they are pseudo-elements, which are ignored anyway. */
+.products-page-header::before,
+.products-page-header::after {
+  content: "";
+
+  position: absolute;
+
+  border-radius: 50%;
+
+  background: #ffffff;
+  opacity: 0.42;
+
+  pointer-events: none;
+}
+
+.products-page-header::before {
+  width: 340px;
+  height: 340px;
+
+  top: -140px;
+  left: -80px;
+}
+
+.products-page-header::after {
+  width: 260px;
+  height: 260px;
+
+  right: -70px;
+  bottom: -110px;
+}
+
+/* Everything in the header sits above the two circles. */
+.products-page-header > * {
+  position: relative;
+  z-index: 1;
 }
 
 .products-page-header h1 {
@@ -699,7 +746,7 @@ img {
 }
 
 .collection-section {
-  padding: 80px 8%;
+  padding: 56px 8% 80px;
 }
 
 .collection-section .product-grid {
@@ -3818,121 +3865,288 @@ button,
 
 .filter-bar {
   max-width: 1180px;
-  margin: 0 auto;
-  padding: 0 32px 8px;
+  margin: -46px auto 0;
+  padding: 26px 32px 30px;
   box-sizing: border-box;
+
+  /* The bar is pulled up so it overlaps the blue page header above
+     it, and lifted onto its own white card. Previously it sat
+     below the header as a bare row of controls, which left it
+     floating in the gap with nothing anchoring it. */
+  position: relative;
+  z-index: 3;
+
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+
+  box-shadow: 0 18px 44px rgba(49, 70, 90, 0.09);
+}
+
+/* On the home page the search bar is a plain block inside the flow,
+   not an overlap, so it keeps the simpler treatment. */
+.home-search {
+  max-width: 640px;
+  margin: 0 auto 36px;
+  padding: 0 20px;
 }
 
 .search-form,
 .home-search {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.home-search {
-  max-width: 560px;
-  margin: 0 auto 36px;
-  padding: 0 20px;
+/* ---------- The search field ----------
+   A pill: fully rounded ends that wrap the input and its button as
+   one object, rather than two separate rounded rectangles sitting
+   side by side. The button is inside the pill (live margin) and the
+   input's own background is transparent, so there is no seam.
+
+   radius 999px is used instead of half the height so it stays a true
+   pill at any height - a fixed number would square off when the
+   font grows. */
+.search-form {
+  position: relative;
+
+  padding: 6px 6px 6px 20px;
+
+  background: #f4f8fb;
+  border: 2px solid transparent;
+  border-radius: 999px;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Focus lands on the input, but the whole pill should light up.
+   :focus-within is what makes that possible - without it the ring
+   would only appear around the bare input inside. */
+.search-form:focus-within {
+  background: #ffffff;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 5px rgba(137, 89, 230, 0.13);
+}
+
+/* The magnifier. Drawn with a CSS mask so it needs no image file and
+   inherits its colour from `background`, which means it can be tinted
+   purple on focus by changing one property. */
+.search-form::before {
+  content: "";
+
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 17px;
+  height: 17px;
+
+  background: var(--muted);
+  opacity: 0.75;
+
+  -webkit-mask: var(--search-icon) center / contain no-repeat;
+  mask: var(--search-icon) center / contain no-repeat;
+
+  transition: background 0.2s ease, opacity 0.2s ease;
+
+  pointer-events: none;
+}
+
+.search-form:focus-within::before {
+  background: var(--purple);
+  opacity: 1;
+}
+
+/* A magnifier glyph as an inline data URI, used as a CSS mask behind
+   the search field. It lives here rather than inline so the mask
+   rules above stay readable. */
+:root {
+  --search-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4.2-4.2'/%3E%3C/svg%3E");
 }
 
 .search-input {
   flex: 1;
-  min-width: 200px;
-  padding: 13px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
-  background: #ffffff;
+  min-width: 180px;
+
+  /* No box of its own - the pill above is the visible control. */
+  padding: 12px 4px 12px 28px;
+
+  border: none;
+  background: transparent;
+
   font-size: 0.95rem;
   font-family: inherit;
   color: inherit;
-  transition: border-color 0.15s ease;
-}
-
-.search-input::placeholder {
-  opacity: 0.45;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: rgba(0, 0, 0, 0.4);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+  opacity: 0.62;
+}
+
+/* Chrome draws its own clear "x" inside type="search" inputs. It sits
+   on top of the pill's padding and cannot be restyled, so it is
+   hidden - the explicit Clear button next to it does the same job. */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .search-btn {
-  padding: 13px 26px;
+  padding: 12px 30px;
+
   border: none;
-  border-radius: 10px;
-  background: #111111;
-  color: #ffffff;
+  border-radius: 999px;
+
+  background: var(--dark-blue);
+  color: var(--white);
+
   font-size: 0.92rem;
   font-weight: 600;
   font-family: inherit;
+
   cursor: pointer;
-  transition: background 0.15s ease;
+
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .search-btn:hover {
-  background: #333333;
+  background: var(--purple);
+  box-shadow: 0 6px 16px rgba(137, 89, 230, 0.32);
 }
 
-/* Only appears when there is something to clear. */
+.search-btn:active {
+  transform: scale(0.97);
+}
+
+.search-btn:focus-visible {
+  outline: 2px solid var(--dark-blue);
+  outline-offset: 3px;
+}
+
+/* Only appears when there is something to clear. Pill-shaped like
+   everything else in the bar, and quiet by default so it does not
+   compete with Search. */
 .search-clear {
-  padding: 13px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
+  padding: 12px 22px;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
   background: transparent;
+
   font-size: 0.9rem;
   font-family: inherit;
-  color: inherit;
+  color: var(--muted);
+
   cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 
 .search-clear:hover {
-  background: #f2f2f2;
+  background: #f1f5f8;
+  border-color: rgba(49, 70, 90, 0.2);
+  color: var(--dark-blue);
+}
+
+.search-clear:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 3px;
 }
 
 /* ---------- Category chips ---------- */
 
+/* One row holding the chips on the left and the result count on the
+   right. Wraps on narrow screens so the count drops below the chips
+   instead of squeezing them. */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
 .category-filter {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 16px;
 }
 
 .filter-chip {
-  padding: 8px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.14);
+  padding: 9px 20px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #ffffff;
+  background: #f7fafc;
   font-size: 0.86rem;
   font-weight: 500;
   font-family: inherit;
-  color: inherit;
+  color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
 }
 
 .filter-chip:hover {
-  border-color: rgba(0, 0, 0, 0.35);
+  background: #ffffff;
+  border-color: rgba(49, 70, 90, 0.22);
+  color: var(--dark-blue);
+  transform: translateY(-1px);
 }
 
+.filter-chip:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+/* The active chip is filled with the brand purple rather than plain
+   black. Black was the only non-palette colour left on the page, and
+   it made the selected filter look like a disabled button. */
 .filter-chip-active {
-  background: #111111;
-  border-color: #111111;
-  color: #ffffff;
+  background: var(--purple);
+  border-color: var(--purple);
+  color: var(--white);
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(137, 89, 230, 0.3);
 }
 
-/* A one-line statement of what is currently on screen. */
+.filter-chip-active:hover {
+  background: #7a47dd;
+  border-color: #7a47dd;
+  color: var(--white);
+  transform: translateY(-1px);
+}
+
+/* A one-line statement of what is currently on screen. Pushed to the
+   far end of the chip row so the filter summary reads as a result
+   count rather than as another control. */
 .filter-summary {
-  margin: 16px 0 0;
+  margin: 0 0 0 auto;
+  padding-left: 18px;
   font-size: 0.88rem;
-  opacity: 0.6;
+  color: var(--muted);
 }
 
 /* ---------- Empty results ---------- */
@@ -4591,13 +4805,72 @@ button,
 }
 
 @media (max-width: 600px) {
+  /* The pill must NOT become a column. Stacking the input above the
+     button inside a 999px-radius container produces a tall capsule
+     with rounded ends that no longer match the control inside it.
+     Instead the pill keeps its single row and the Clear button drops
+     to its own line below. */
   .search-form {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 6px 6px 6px 16px;
   }
 
-  .search-btn,
-  .search-clear {
+  .search-form::before {
+    left: 16px;
+    width: 15px;
+    height: 15px;
+  }
+
+  /* min-width: 0 is what actually stops the input pushing the row
+     wider than the screen. A flex item will not shrink below its
+     content size unless this is set, and `180px` from the base rule
+     was holding the whole pill open well past a 420px viewport. */
+  .search-input {
+    padding-left: 24px;
+    min-width: 0;
     width: 100%;
+  }
+
+  /* A narrower button so the field gets more of the row - the
+     placeholder was being cut off with the desktop padding. */
+  .search-btn {
+    flex: 0 0 auto;
+    padding: 11px 18px;
+    font-size: 0.88rem;
+  }
+
+  /* Clear sits outside the pill's flow on small screens, so it is
+     given its own row and its own rounded box. */
+  .search-clear {
+    order: 3;
+    width: 100%;
+    margin-top: 8px;
+    padding: 11px 20px;
+  }
+
+  /* The card was spanning the full viewport, which left the pill and
+     the chips hard against the screen edges. Side margins give it
+     room to breathe and keep the rounded corners visible. */
+  .filter-bar {
+    margin: -34px 16px 0;
+    padding: 20px 18px 24px;
+    border-radius: 22px;
+  }
+
+  /* Trimmed so the overlapping search card does not ride up into the
+     heading on narrow screens. */
+  .products-page-header {
+    padding: 84px 6% 104px;
+  }
+
+  .filter-row {
+    gap: 10px;
+  }
+
+  .filter-summary {
+    margin-left: 0;
+    padding-left: 0;
   }
 
   .ai-grid {

@@ -225,8 +225,14 @@ function Products() {
                 value: event.target.value,
               })
             }
-            placeholder="Search products by name or description"
-            aria-label="Search products"
+            /* Kept short on purpose. The previous wording, "Search
+               products by name or description", was long enough to
+               be cut off mid-word on a phone, where the Search
+               button takes most of the row. "Search products" fits
+               at every width, and the aria-label below still
+               announces the full explanation to screen readers. */
+            placeholder="Search products"
+            aria-label="Search products by name or description"
           />
 
           <button type="submit" className="search-btn">
@@ -246,45 +252,49 @@ function Products() {
           )}
         </form>
 
-        <div className="category-filter">
-          <button
-            type="button"
-            className={`filter-chip ${category === "" ? "filter-chip-active" : ""}`}
-            onClick={() => handleCategory("")}
-          >
-            All
-          </button>
-
-          {CATEGORIES.map((name) => (
+        <div className="filter-row">
+          <div className="category-filter">
             <button
-              key={name}
               type="button"
-              className={`filter-chip ${
-                category.toLowerCase() === name.toLowerCase()
-                  ? "filter-chip-active"
-                  : ""
-              }`}
-              onClick={() => handleCategory(name)}
+              className={`filter-chip ${category === "" ? "filter-chip-active" : ""}`}
+              onClick={() => handleCategory("")}
             >
-              {name === "Home" ? "Home & Living" : name}
+              All
             </button>
-          ))}
-        </div>
 
-        {/* Say what is currently being shown. A searched list with no
-            explanation is confusing. */}
-        {!loading && !error && (
-          <p className="filter-summary">
-            {query
-              ? `${filteredProducts.length} result${
-                  filteredProducts.length === 1 ? "" : "s"
-                } for "${query}"`
-              : `Showing ${filteredProducts.length} product${
-                  filteredProducts.length === 1 ? "" : "s"
+            {CATEGORIES.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={`filter-chip ${
+                  category.toLowerCase() === name.toLowerCase()
+                    ? "filter-chip-active"
+                    : ""
                 }`}
-            {category && ` in ${category === "Home" ? "Home & Living" : category}`}
-          </p>
-        )}
+                onClick={() => handleCategory(name)}
+              >
+                {name === "Home" ? "Home & Living" : name}
+              </button>
+            ))}
+          </div>
+
+          {/* Say what is currently being shown. A searched list with
+              no explanation is confusing. It sits at the end of the
+              same row as the chips so it reads as a count of what the
+              filters produced, not as another control. */}
+          {!loading && !error && (
+            <p className="filter-summary">
+              {query
+                ? `${filteredProducts.length} result${
+                    filteredProducts.length === 1 ? "" : "s"
+                  } for "${query}"`
+                : `Showing ${filteredProducts.length} product${
+                    filteredProducts.length === 1 ? "" : "s"
+                  }`}
+              {category && ` in ${category === "Home" ? "Home & Living" : category}`}
+            </p>
+          )}
+        </div>
       </section>
 
       {/* ================= PRODUCTS ================= */}
