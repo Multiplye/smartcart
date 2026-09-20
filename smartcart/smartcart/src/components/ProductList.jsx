@@ -100,7 +100,13 @@ function ProductList() {
       </div>
 
       {/* A quick way in. Submitting hands off to the products page,
-          where the full search and category filters live. */}
+          where the full search and category filters live.
+
+          The nesting here matters: .home-search is the pill and the
+          input plus button live INSIDE it. The products page does the
+          same thing with .search-form. If you ever flatten this back
+          to two siblings the pill breaks, because the rounded ends
+          would no longer wrap the controls. */}
       <form className="home-search" onSubmit={handleSearch} role="search">
         <input
           type="search"

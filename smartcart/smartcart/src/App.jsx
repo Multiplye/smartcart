@@ -11,6 +11,7 @@ import Recommendations from "./components/Recommendations";
 import Admin from "./components/Admin";
 import Navbar from "./components/Navbar";
 import HeroArt from "./components/HeroArt";
+import CategoryIcon from "./components/CategoryIcon";
 import PageLayout from "./components/PageLayout";
 import ScrollManager from "./components/ScrollManager";
 
@@ -148,68 +149,98 @@ function Home() {
 
         <div className="category-grid">
 
-          {/* ELECTRONICS */}
-<div className="category-card">
-  <div className="category-number">
-    01
-  </div>
+        {/* Each card is icon-beside-text rather than icon-above-text.
+            The chip sits on the left and the number, heading, blurb and
+            link stack in a column next to it (see .category-body in
+            App.css). On a narrow screen the chip shrinks rather than
+            the text, so the heading keeps its line. */}
 
-  <h3>
-    Electronics
-  </h3>
+        {/* ELECTRONICS */}
+        <div className="category-card">
+          <div className="category-top">
+            <span className="category-icon">
+              <CategoryIcon category="Electronics" />
+            </span>
 
-  <p>
-    Smart gadgets and useful technology
-    for modern living.
-  </p>
+            <div className="category-body">
+              <div className="category-number">
+                01
+              </div>
 
-  <Link to="/products?category=Electronics">
-    Explore Collection →
-  </Link>
-</div>
+              <h3>
+                Electronics
+              </h3>
 
+              <p>
+                Smart gadgets and useful technology
+                for modern living.
+              </p>
 
-{/* FASHION */}
-<div className="category-card">
-  <div className="category-number">
-    02
-  </div>
-
-  <h3>
-    Fashion
-  </h3>
-
-  <p>
-    Comfortable and stylish products
-    for everyday life.
-  </p>
-
-  <Link to="/products?category=Fashion">
-    Explore Collection →
-  </Link>
-</div>
+              <Link to="/products?category=Electronics">
+                Explore Collection →
+              </Link>
+            </div>
+          </div>
+        </div>
 
 
-{/* HOME */}
-<div className="category-card">
-  <div className="category-number">
-    03
-  </div>
+        {/* FASHION */}
+        <div className="category-card">
+          <div className="category-top">
+            <span className="category-icon">
+              <CategoryIcon category="Fashion" />
+            </span>
 
-  <h3>
-    Home & Living
-  </h3>
+            <div className="category-body">
+              <div className="category-number">
+                02
+              </div>
 
-  <p>
-    Simple products that make your
-    space feel better.
-  </p>
+              <h3>
+                Fashion
+              </h3>
 
-  <Link to="/products?category=Home">
-    Explore Collection →
-  </Link>
-</div>
-</div>
+              <p>
+                Comfortable and stylish products
+                for everyday life.
+              </p>
+
+              <Link to="/products?category=Fashion">
+                Explore Collection →
+              </Link>
+            </div>
+          </div>
+        </div>
+
+
+        {/* HOME */}
+        <div className="category-card">
+          <div className="category-top">
+            <span className="category-icon">
+              <CategoryIcon category="Home" />
+            </span>
+
+            <div className="category-body">
+              <div className="category-number">
+                03
+              </div>
+
+              <h3>
+                Home & Living
+              </h3>
+
+              <p>
+                Simple products that make your
+                space feel better.
+              </p>
+
+              <Link to="/products?category=Home">
+                Explore Collection →
+              </Link>
+            </div>
+          </div>
+        </div>
+        </div>
       </section>
 
       {/* ================= AI SECTION ================= */}

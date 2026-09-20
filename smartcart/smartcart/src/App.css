@@ -614,14 +614,80 @@ img {
   box-shadow: var(--shadow);
 }
 
+/* ---------- Icon beside the text ----------
+   .category-top is the row: a fixed-width icon chip on the left and
+   .category-body taking the rest. `align-items: flex-start` keeps the
+   chip level with the number rather than floating to the card's
+   vertical centre, which looked unmoored once the blurb grew. */
+.category-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.category-body {
+  /* min-width: 0 because this is a flex child. Without it the column
+     refuses to shrink below its longest word and pushes the card
+     wider than the grid cell on narrow screens. */
+  flex: 1;
+  min-width: 0;
+}
+
+/* The chip. The 48-unit viewBox inside renders at 38px, which is the
+   size where the 2.4 stroke weight fills the chip properly. An
+   earlier 34px left the drawing looking lost in its own box. */
+.category-icon {
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  width: 68px;
+  height: 68px;
+
+  background: linear-gradient(150deg, #f3f0fe 0%, #eef6fd 100%);
+
+  border: 1px solid rgba(137, 89, 230, 0.16);
+  border-radius: 19px;
+
+  color: var(--purple);
+
+  transition: var(--transition);
+}
+
+.category-icon-svg {
+  width: 38px;
+  height: 38px;
+
+  display: block;
+}
+
+/* Lifting the card also lifts its chip, and swaps the chip to the
+   solid brand colour. Both are on the card's hover, not the chip's,
+   so the whole card stays one target. */
+.category-card:hover .category-icon {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: var(--white);
+  box-shadow: 0 10px 22px rgba(137, 89, 230, 0.28);
+}
+
 .category-number {
-  margin-bottom: 30px;
+  margin-bottom: 14px;
 
   color: var(--purple);
 
   font-family: "Poppins", sans-serif;
   font-size: 13px;
   font-weight: 800;
+
+  transition: var(--transition);
+}
+
+/* Once the chip is solid purple, a purple number next to it is two
+   competing accents. Muted it stays readable without arguing. */
+.category-card:hover .category-number {
+  color: var(--muted);
 }
 
 .category-card h3 {
@@ -2267,6 +2333,23 @@ button,
     grid-template-columns: 1fr;
   }
 
+  /* At one card per row the card is much wider, so the chip keeps its
+     full size but the drawing scales with it a little to stay in
+     proportion with the text beside it. */
+  .category-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 17px;
+  }
+
+  .category-icon-svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .category-top {
+    gap: 16px;
+  }
   .ai-section {
     padding: 70px 5%;
 
@@ -3883,31 +3966,32 @@ button,
   box-shadow: 0 18px 44px rgba(49, 70, 90, 0.09);
 }
 
-/* On the home page the search bar is a plain block inside the flow,
-   not an overlap, so it keeps the simpler treatment. */
-.home-search {
-  max-width: 640px;
-  margin: 0 auto 36px;
-  padding: 0 20px;
-}
+/* ------------------------------------------------------------------
+   .home-search  (home page)  and  .search-form  (products page)
+   ------------------------------------------------------------------
+   These are the SAME control in two places, so they share one set of
+   rules rather than being styled twice. Two copies would drift apart
+   the first time one of them was edited.
 
-.search-form,
-.home-search {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
+   The difference between them is only the surrounding frame:
+     .home-search  sits in the page flow, centred, with side padding
+     .search-form  sits inside .filter-bar, the white card that
+                   overlaps the products header
 
-/* ---------- The search field ----------
-   A pill: fully rounded ends that wrap the input and its button as
-   one object, rather than two separate rounded rectangles sitting
-   side by side. The button is inside the pill (live margin) and the
-   input's own background is transparent, so there is no seam.
+   Both are pills: fully rounded ends that wrap the input and its
+   button as one object, rather than two separate rounded rectangles
+   side by side. The button is inside the pill and the input's own
+   background is transparent, so there is no seam between them.
 
    radius 999px is used instead of half the height so it stays a true
    pill at any height - a fixed number would square off when the
    font grows. */
+.home-search,
 .search-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+
   position: relative;
 
   padding: 6px 6px 6px 20px;
@@ -3922,9 +4006,17 @@ button,
     box-shadow 0.2s ease;
 }
 
+/* The home page has no .filter-bar, so it carries the max-width
+   itself and centres in the page flow. */
+.home-search {
+  max-width: 640px;
+  margin: 0 auto 36px;
+}
+
 /* Focus lands on the input, but the whole pill should light up.
    :focus-within is what makes that possible - without it the ring
    would only appear around the bare input inside. */
+.home-search:focus-within,
 .search-form:focus-within {
   background: #ffffff;
   border-color: var(--purple);
@@ -3934,6 +4026,7 @@ button,
 /* The magnifier. Drawn with a CSS mask so it needs no image file and
    inherits its colour from `background`, which means it can be tinted
    purple on focus by changing one property. */
+.home-search::before,
 .search-form::before {
   content: "";
 
@@ -3956,6 +4049,7 @@ button,
   pointer-events: none;
 }
 
+.home-search:focus-within::before,
 .search-form:focus-within::before {
   background: var(--purple);
   opacity: 1;
@@ -4809,13 +4903,18 @@ button,
      button inside a 999px-radius container produces a tall capsule
      with rounded ends that no longer match the control inside it.
      Instead the pill keeps its single row and the Clear button drops
-     to its own line below. */
+     to its own line below.
+
+     .home-search is included because it is the same control on the
+     home page - it has no Clear button, so only the sizing applies. */
+  .home-search,
   .search-form {
     flex-direction: row;
     flex-wrap: wrap;
     padding: 6px 6px 6px 16px;
   }
 
+  .home-search::before,
   .search-form::before {
     left: 16px;
     width: 15px;
@@ -4856,6 +4955,41 @@ button,
     margin: -34px 16px 0;
     padding: 20px 18px 24px;
     border-radius: 22px;
+  }
+
+  /* The home pill needs the same breathing room. It is already
+     max-width 640px and centred, but on a phone that means it spans
+     edge to edge - the rounded ends would sit flush against the
+     screen and stop reading as a pill. */
+  .home-search {
+    margin: 0 16px 32px;
+    max-width: none;
+  }
+
+  /* At this width the card still has padding on each side, so the chip
+     drops to 52px to leave the heading a sensible line length. */
+  .category-card {
+    padding: 26px 22px;
+    min-height: 0;
+  }
+
+  .category-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 15px;
+  }
+
+  .category-icon-svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .category-top {
+    gap: 14px;
+  }
+
+  .category-card h3 {
+    font-size: 22px;
   }
 
   /* Trimmed so the overlapping search card does not ride up into the
