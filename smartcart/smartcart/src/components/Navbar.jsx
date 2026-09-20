@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
@@ -24,6 +25,36 @@ import { useCart } from "../context/useCart";
 function Navbar() {
   const { user, isLoggedIn, isSeller, isAdmin } = useAuth();
   const { cartCount } = useCart();
+
+  /*
+    The cart badge gives a small pop whenever the count changes, so
+    adding something to the basket is acknowledged even when the
+    navbar is off to the side of what you were looking at.
+
+    This has to be driven by the PREVIOUS value: the count alone
+    cannot tell us whether it changed or the page simply re-rendered.
+    Comparing against a ref, and only popping when they differ, means
+    the badge is still on first load and every unrelated render is
+    still - it only moves when the number actually moves.
+
+    The class is removed on a timer so the animation can run again
+    next time. React would not re-trigger a CSS animation that is
+    already applied, so the class has to come off in between.
+  */
+  const previousCount = useRef(cartCount);
+  const [popping, setPopping] = useState(false);
+
+  useEffect(() => {
+    const changed = previousCount.current !== cartCount;
+    previousCount.current = cartCount;
+
+    if (!changed) return undefined;
+
+    setPopping(true);
+    const timer = window.setTimeout(() => setPopping(false), 420);
+
+    return () => window.clearTimeout(timer);
+  }, [cartCount]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -89,7 +120,11 @@ function Navbar() {
       </nav>
 
       <Link to="/checkout" className="cart-btn">
-        Cart ({cartCount})
+        Cart (
+        <span className={`cart-count-badge ${popping ? "cart-count-pop" : ""}`}>
+          {cartCount}
+        </span>
+        )
       </Link>
     </header>
   );

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { getProducts } from "../data/api";
 import { useCart } from "../context/useCart";
 import Stars from "./Stars";
+import Reveal from "./Reveal";
 
 // The categories that exist in the catalogue. Hard-coded rather than
 // derived from the fetched products so the filter row does not jump
@@ -331,7 +332,6 @@ function Products() {
         {!loading && !error && filteredProducts.length === 0 && (
           <div className="empty-results">
             <h3>No products found</h3>
-
             {query ? (
               <>
                 <p>
@@ -368,10 +368,16 @@ function Products() {
 
         {!loading && !error && (
           <div className="product-grid">
-          {filteredProducts.map((product) => (
-            <div
+          {filteredProducts.map((product, index) => (
+            /* Capped at 8 steps. A 36-item list with an uncapped
+               stagger would leave the last card waiting four seconds,
+               which reads as broken rather than as a flourish. Past
+               the eighth the delay stops growing, so the tail of a
+               long list arrives together. */
+            <Reveal
               className="product-card"
               key={product.id}
+              delay={Math.min(index, 8) * 70}
             >
               {/* Clicking the image or the name opens the full product
                   page, where the reviews live. */}
@@ -425,7 +431,7 @@ function Products() {
                       : "Add to Cart"}
                 </button>
               </div>
-            </div>
+            </Reveal>
           ))}
           </div>
         )}

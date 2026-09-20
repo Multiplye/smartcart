@@ -112,7 +112,7 @@ img {
   color: var(--dark-blue);
   font-size: 14px;
   font-weight: 600;
-  transition: var(--transition);
+  transition: color 0.22s ease;
 }
 
 .navbar nav a::after {
@@ -126,7 +126,11 @@ img {
   left: 0;
   bottom: -7px;
 
-  transition: var(--transition);
+  border-radius: 2px;
+
+  /* The underline grows from the left on a slight overshoot curve,
+     which reads as more deliberate than a linear wipe. */
+  transition: width 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .navbar nav a:hover {
@@ -477,15 +481,35 @@ img {
   border: 1px solid var(--border);
   border-radius: 22px;
 
-  transition: var(--transition);
-
-  animation: fadeUp 0.6s ease forwards;
+  /* Note: no `animation` here any more. The old load-time fadeUp
+     fired the moment the page loaded, which meant every card below
+     the fold animated while nobody was looking. Entrance is now
+     driven by the scroll reveal in useReveal.js, which adds
+     `.reveal` / `.reveal-in` to this same element. Leaving the
+     animation here as well would have the two fighting over the
+     same opacity and transform properties. */
+  transition:
+    transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
 }
 
 .product-card:hover {
   transform: translateY(-8px);
   box-shadow: var(--shadow);
   border-color: transparent;
+}
+
+/* The photo grows very slightly on card hover. 1.06 is enough to feel
+   alive and small enough that nothing is cropped out of frame - the
+   container already has `overflow: hidden`, so a larger scale would
+   start eating the edges of the product. */
+.product-image img {
+  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.product-card:hover .product-image img {
+  transform: scale(1.06);
 }
 
 .product-image {
@@ -2169,6 +2193,59 @@ img {
 
 
 /* =====================================================
+   SCROLL REVEAL
+===================================================== */
+
+/* Elements fade and rise into place when they scroll into view.
+   The watching is done by useReveal.js, which adds `.reveal` once
+   it knows it can also remove it again - see the note at the top of
+   that file for why the visible state is the default. */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+
+  /* Only opacity and transform are animated. Both are handled by the
+     compositor, so this costs no layout work - important on a page
+     with a 36-item product grid. Animating height or margin here
+     would make the whole list reflow on every frame. */
+  transition:
+    opacity 0.65s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  transition-delay: var(--reveal-delay, 0ms);
+
+  /* Tells the browser what is about to change, so it can promote the
+     element to its own layer up front instead of mid-transition. */
+  will-change: opacity, transform;
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+
+  /* Once the transition has finished, drop the layer hint. Leaving
+     `will-change` on hundreds of elements permanently is worse than
+     never setting it - each one keeps a compositor layer alive. */
+  will-change: auto;
+}
+
+/* A slower, larger movement for headings that stand alone. Using the
+   same travel distance everywhere reads mechanical; giving the
+   section headings more room to rise makes them feel like the
+   introduction to what follows. */
+.reveal-lg {
+  transform: translateY(40px);
+}
+
+/* A pure fade, no movement. Used where moving the element would look
+   wrong - the sticky order summary, and anything already pinned. */
+.reveal-fade {
+  transform: none;
+}
+
+
+/* =====================================================
    PILL BUTTONS
 ===================================================== */
 
@@ -2182,6 +2259,94 @@ button,
 .checkout-btn,
 .remove-btn {
   border-radius: 999px;
+}
+
+/* ---------- Shared press feedback ----------
+   One rule so every button in the app responds the same way, rather
+   than each rule declaring its own timing and the set drifting apart.
+
+   The press is a scale DOWN, not a colour change: it reads as the
+   button being pushed, and it works whatever the button's colour is.
+   0.97 is small enough to feel like a press rather than a bounce.
+
+   `:not(:disabled)` matters - a disabled button that still squashes
+   on click looks broken and invites the user to keep trying. */
+button:not(:disabled):active,
+.shop-btn:active,
+.learn-btn:active,
+.cart-btn:active,
+.add-cart-btn:active,
+.ai-btn:active,
+.auth-btn:active,
+.checkout-btn:active {
+  transform: scale(0.97);
+}
+
+/* Buttons that transition transform already get the press easing for
+   free. Ones that do not are given a short default here, so the
+   squash is not instant. */
+button,
+.shop-btn,
+.learn-btn,
+.cart-btn,
+.ai-btn,
+.auth-btn,
+.checkout-btn {
+  transition:
+    background 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.24s ease,
+    transform 0.12s ease;
+}
+
+/* Anything that cannot be clicked should not pretend otherwise. */
+button:disabled,
+.add-cart-btn:disabled {
+  cursor: not-allowed;
+}
+
+
+/* =====================================================
+   CART COUNT POP
+===================================================== */
+
+/* The badge is a plain inline element the rest of the time, so the
+   navbar text does not shift. It only gets a transform when the
+   `cart-count-pop` class is present (see Navbar.jsx), which is what
+   keeps it still on first load and on unrelated re-renders. */
+.cart-count-badge {
+  display: inline-block;
+
+  /* Applying the animation to this base class rather than only to the
+     pop class is deliberate: without a transform on the base, the
+     badge would jump back to its resting size the instant the class
+     is removed, instead of settling. */
+  transition: transform 0.18s ease;
+}
+
+.cart-count-pop {
+  animation: cartPop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* A small overshoot then a settle. The cubic-bezier above is what
+   gives it the bounce - a linear or ease curve would just look like
+   the badge resizing. */
+@keyframes cartPop {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.45);
+  }
+
+  70% {
+    transform: scale(0.94);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 
@@ -2467,6 +2632,16 @@ button,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Belt and braces for the scroll reveals. useReveal.js already
+     skips the hidden state entirely when motion is reduced, so these
+     rules should never be needed - but if the class is present for
+     any reason (a hot reload, a stale build) the content must still
+     be readable rather than stuck at opacity 0. */
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

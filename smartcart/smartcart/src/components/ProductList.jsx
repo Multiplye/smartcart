@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getProducts } from "../data/api";
 import { useCart } from "../context/useCart";
+import Reveal from "./Reveal";
 
 function ProductList() {
   // The cart is shared app-wide, so this component reaches it directly
@@ -150,8 +151,16 @@ function ProductList() {
 
       {!loading && !error && (
         <div className="product-grid">
-        {featuredProducts.map((product) => (
-          <div className="product-card" key={product.id}>
+        {featuredProducts.map((product, index) => (
+          /* Staggered by 90ms each, so the row sweeps left to right
+             rather than four cards appearing at once. The index comes
+             from the map, which is why the delay lives here and not
+             in the CSS. */
+          <Reveal
+            className="product-card"
+            key={product.id}
+            delay={index * 90}
+          >
             {/* The home cards link through to the product page too.
                 Without this the featured products were the only ones
                 in the whole app you could not click into. */}
@@ -188,16 +197,16 @@ function ProductList() {
                     : "Add to Cart"}
               </button>
             </div>
-          </div>
+          </Reveal>
         ))}
         </div>
       )}
 
-      <div className="products-more">
+      <Reveal className="products-more" delay={80}>
         <Link to="/products" className="learn-btn">
           View All Products
         </Link>
-      </div>
+      </Reveal>
     </section>
   );
 }

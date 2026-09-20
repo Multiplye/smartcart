@@ -12,6 +12,7 @@ import Admin from "./components/Admin";
 import Navbar from "./components/Navbar";
 import HeroArt from "./components/HeroArt";
 import CategoryIcon from "./components/CategoryIcon";
+import Reveal from "./components/Reveal";
 import PageLayout from "./components/PageLayout";
 import ScrollManager from "./components/ScrollManager";
 
@@ -102,27 +103,30 @@ function Home() {
         </div>
       </section>
 
-      {/* ================= TRUST BAR ================= */}
+      {/* ================= TRUST BAR =================
+          Each cell rises in turn. The stagger is short (70ms) because
+          these are four small items on one line - a long stagger would
+          leave the last one arriving after the eye has moved on. */}
       <section className="trust-bar">
-        <div>
+        <Reveal delay={0}>
           <strong>01</strong>
           <span>Nepal Focused</span>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={70}>
           <strong>02</strong>
           <span>Easy Shopping</span>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={140}>
           <strong>03</strong>
           <span>Secure Experience</span>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={210}>
           <strong>04</strong>
           <span>Smart Recommendations</span>
-        </div>
+        </Reveal>
       </section>
 
       {/* ================= PRODUCTS ================= */}
@@ -133,7 +137,7 @@ function Home() {
         className="category-section"
         id="categories"
       >
-        <div className="section-heading">
+        <Reveal className="section-heading" variant="lg">
           <span className="section-label">
             SHOP BY CATEGORY
           </span>
@@ -145,7 +149,7 @@ function Home() {
           <p>
             Find products selected for your everyday needs.
           </p>
-        </div>
+        </Reveal>
 
         <div className="category-grid">
 
@@ -156,7 +160,7 @@ function Home() {
             the text, so the heading keeps its line. */}
 
         {/* ELECTRONICS */}
-        <div className="category-card">
+        <Reveal className="category-card" delay={0}>
           <div className="category-top">
             <span className="category-icon">
               <CategoryIcon category="Electronics" />
@@ -181,11 +185,11 @@ function Home() {
               </Link>
             </div>
           </div>
-        </div>
+        </Reveal>
 
 
         {/* FASHION */}
-        <div className="category-card">
+        <Reveal className="category-card" delay={110}>
           <div className="category-top">
             <span className="category-icon">
               <CategoryIcon category="Fashion" />
@@ -210,11 +214,11 @@ function Home() {
               </Link>
             </div>
           </div>
-        </div>
+        </Reveal>
 
 
         {/* HOME */}
-        <div className="category-card">
+        <Reveal className="category-card" delay={220}>
           <div className="category-top">
             <span className="category-icon">
               <CategoryIcon category="Home" />
@@ -239,13 +243,16 @@ function Home() {
               </Link>
             </div>
           </div>
-        </div>
+        </Reveal>
         </div>
       </section>
 
       {/* ================= AI SECTION ================= */}
       <section className="ai-section">
-        <div className="ai-content">
+        {/* The two halves rise from opposite sides would be gimmicky;
+            both rise, but the copy leads and the visual follows 120ms
+            later so the eye lands on the text first. */}
+        <Reveal className="ai-content" variant="lg">
           <span className="section-label">
             SMART RECOMMENDATIONS
           </span>
@@ -267,9 +274,9 @@ function Home() {
               Try AI Recommendations →
             </button>
           </Link>
-        </div>
+        </Reveal>
 
-        <div className="ai-visual">
+        <Reveal className="ai-visual" delay={120}>
           <div className="ai-circle">
             AI
           </div>
@@ -279,12 +286,12 @@ function Home() {
             <br />
             Recommendations
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ================= CART ================= */}
       <section className="cart-section" id="cart">
-        <div className="cart-header">
+        <Reveal className="cart-header">
           <span className="section-label">
             YOUR SHOPPING CART
           </span>
@@ -292,7 +299,7 @@ function Home() {
           <h2>
             Shopping Cart
           </h2>
-        </div>
+        </Reveal>
 
         {cartLoading && (
           <p className="products-status">Loading your cart...</p>
