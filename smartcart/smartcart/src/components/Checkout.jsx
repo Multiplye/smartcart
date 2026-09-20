@@ -72,13 +72,24 @@ function Checkout() {
           <div className="products-status products-error">
             <strong>You need an account to place an order.</strong>
             <p>
-              Orders are saved to your account so you can track them later.
-              Head to the home page and log in or register, then come back.
+              Orders are saved to your account so you can track them
+              later. Log in or register on the home page, then come
+              back here to finish.
             </p>
           </div>
 
-          <Link to="/" className="learn-btn">
-            Back to Home
+          {/* The auth card lives in the home page's `#auth` section.
+              Sending people there directly saves them from landing on
+              the top of the home page and having to work out where the
+              login form is - which is exactly what this button used to
+              do. The hash is handled by the home page's scroll logic,
+              and by ScrollManager when arriving from another route. */}
+          <Link to="/#auth" className="shop-btn">
+            Log In or Register
+          </Link>
+
+          <Link to="/products" className="learn-btn">
+            Keep Browsing
           </Link>
         </section>
       </main>

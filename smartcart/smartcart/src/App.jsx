@@ -13,6 +13,7 @@ import Navbar from "./components/Navbar";
 import HeroArt from "./components/HeroArt";
 import CategoryIcon from "./components/CategoryIcon";
 import Reveal from "./components/Reveal";
+import NotFound from "./components/NotFound";
 import PageLayout from "./components/PageLayout";
 import ScrollManager from "./components/ScrollManager";
 
@@ -709,6 +710,15 @@ function App() {
 
         {/* ADMIN PANEL - the backend rejects anyone who is not an admin */}
         <Route path="/admin" element={wrap(<Admin />)} />
+
+        {/* CATCH-ALL.
+            Without this, any unmatched URL rendered nothing at all -
+            no page, no navbar, no way out. The navbar is supplied by
+            PageLayout per page rather than around the routes, so a
+            route that does not exist had nothing to render it.
+            `path="*"` must stay last so it only catches what falls
+            through everything above. */}
+        <Route path="*" element={wrap(<NotFound />)} />
 
       </Routes>
     </>
